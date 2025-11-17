@@ -84,6 +84,10 @@ const App = () => {
     });
   };
 
+  const handleFormChange = (field, value) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
   const addProduct = async () => {
     if (!formData.name || !formData.price) {
       alert('Please fill in Product Name and Price');
@@ -112,7 +116,7 @@ const App = () => {
         images: [],
       });
       await loadProducts();
-      setCurrentPage('home');
+      setCurrentPage('view');
     } catch (error) {
       console.error('Error adding/updating product:', error);
       alert('Error saving product: ' + error.message);
@@ -321,9 +325,7 @@ const App = () => {
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
         <header style={{
-          background: 'linear-gradient(rgba(233, 213, 255, 0.9), rgba(243, 232, 255, 0.9)), url(https://images.unsplash.com/photo-1558769132-cb1aea79f9d5?w=1600)',
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
+          background: 'linear-gradient(rgba(233, 213, 255, 0.9), rgba(243, 232, 255, 0.9))',
           padding: '80px 20px',
           minHeight: '500px',
         }}>
@@ -701,7 +703,7 @@ const App = () => {
                 type="text"
                 placeholder="Enter product name"
                 value={formData.name}
-                onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                onChange={(e) => handleFormChange('name', e.target.value)}
                 style={{
                   width: '100%',
                   padding: '12px',
@@ -722,7 +724,7 @@ const App = () => {
                 step="0.01"
                 placeholder="Enter product price"
                 value={formData.price}
-                onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                onChange={(e) => handleFormChange('price', e.target.value)}
                 style={{
                   width: '100%',
                   padding: '12px',
@@ -740,7 +742,7 @@ const App = () => {
               <textarea
                 placeholder="Enter product description"
                 value={formData.description}
-                onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+                onChange={(e) => handleFormChange('description', e.target.value)}
                 style={{
                   width: '100%',
                   padding: '12px',
@@ -759,7 +761,7 @@ const App = () => {
               </label>
               <select
                 value={formData.category}
-                onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                onChange={(e) => handleFormChange('category', e.target.value)}
                 style={{
                   width: '100%',
                   padding: '12px',
@@ -813,7 +815,7 @@ const App = () => {
                       <button
                         onClick={() => {
                           const newImages = formData.images.filter((_, i) => i !== idx);
-                          setFormData(prev => ({ ...prev, images: newImages }));
+                          handleFormChange('images', newImages);
                         }}
                         style={{
                           position: 'absolute',
@@ -1185,4 +1187,7 @@ const App = () => {
       {currentPage === 'view' && <ViewAllPage />}
       {currentPage === 'detail' && <ProductDetailPage />}
     </div>
-  )};
+  );
+};
+
+export default App;
