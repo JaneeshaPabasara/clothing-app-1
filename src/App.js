@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Landing from './Landing page Artisons.jpg';
 import { db } from './firebase';
 import {
   collection,
@@ -365,11 +366,13 @@ const App = () => {
             </div>
             <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
               <img 
-                src="https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=200&h=300&fit=crop" 
+                src={Landing} 
                 alt="Fashion 1" 
-                style={{ width: '150px', height: '220px', objectFit: 'cover', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
+                style={{  position: 'relative',backgroundSize: 'cover',
+  backgroundPosition: 'center',display: 'flex',
+  alignItems: 'center',width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
               />
-              <img 
+              {/* <img 
                 src="https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=200&h=300&fit=crop" 
                 alt="Fashion 2" 
                 style={{ width: '150px', height: '220px', objectFit: 'cover', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
@@ -378,7 +381,7 @@ const App = () => {
                 src="https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=200&h=300&fit=crop" 
                 alt="Fashion 3" 
                 style={{ width: '150px', height: '220px', objectFit: 'cover', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
-              />
+              /> */}
             </div>
           </div>
         </header>
