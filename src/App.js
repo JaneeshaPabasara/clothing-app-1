@@ -86,7 +86,11 @@ const App = () => {
   };
 
   const handleFormChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData(prev => {
+  const updated = { ...prev };
+  updated[field] = value;
+  return updated;
+});
   };
 
   const addProduct = async () => {
