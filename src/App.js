@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Landing from './Landing page Artisons.jpg';
 import { db } from './firebase';
 import {
@@ -17,6 +17,7 @@ const App = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
   const [formData, setFormData] = useState({
     name: '',
     price: '',
@@ -31,26 +32,7 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    filterProducts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [products, selectedCategory, searchTerm]);
-
-  const loadProducts = async () => {
-    try {
-      const snapshot = await getDocs(collection(db, 'products'));
-      const productsData = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
-      setProducts(productsData);
-    } catch (error) {
-      console.error('Error loading products:', error);
-      alert('Error loading products. Check console.');
-    }
-  };
-
-  const filterProducts = () => {
-    let filtered = products;
+    let filtered = [...products];
 
     if (selectedCategory !== 'all') {
       filtered = filtered.filter(
@@ -68,6 +50,24 @@ const App = () => {
     }
 
     setFilteredProducts(filtered);
+  }, [products, selectedCategory, searchTerm]);
+
+  const loadProducts = async () => {
+    try {
+      setLoading(true);
+      const snapshot = await getDocs(collection(db, 'products'));
+      const productsData = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      console.log('Loaded products:', productsData);
+      setProducts(productsData);
+    } catch (error) {
+      console.error('Error loading products:', error);
+      alert('Error loading products: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleImageUpload = (e) => {
@@ -81,16 +81,11 @@ const App = () => {
     });
 
     Promise.all(imagePromises).then((images) => {
-      setFormData(prev => ({ ...prev, images: [...prev.images, ...images] }));
+      setFormData(prev => ({ 
+        ...prev, 
+        images: [...prev.images, ...images] 
+      }));
     });
-  };
-
-  const handleFormChange = (field, value) => {
-    setFormData(prev => {
-  const updated = { ...prev };
-  updated[field] = value;
-  return updated;
-});
   };
 
   const addProduct = async () => {
@@ -105,14 +100,24 @@ const App = () => {
     }
 
     try {
+      const productData = {
+        name: formData.name,
+        price: formData.price,
+        description: formData.description,
+        category: formData.category,
+        images: formData.images || []
+      };
+
       if (editingProduct) {
-        await updateDoc(doc(db, 'products', editingProduct.id), formData);
+        await updateDoc(doc(db, 'products', editingProduct.id), productData);
         alert('Product updated successfully!');
         setEditingProduct(null);
       } else {
-        await addDoc(collection(db, 'products'), formData);
+        const docRef = await addDoc(collection(db, 'products'), productData);
+        console.log('Product added with ID:', docRef.id);
         alert('Product added successfully!');
       }
+      
       setFormData({
         name: '',
         price: '',
@@ -120,6 +125,7 @@ const App = () => {
         category: 'Wedding',
         images: [],
       });
+      
       await loadProducts();
       setCurrentPage('view');
     } catch (error) {
@@ -136,14 +142,20 @@ const App = () => {
         alert('Product deleted successfully!');
       } catch (error) {
         console.error('Error deleting product:', error);
-        alert('Error deleting product');
+        alert('Error deleting product: ' + error.message);
       }
     }
   };
 
   const startEdit = (product) => {
     setEditingProduct(product);
-    setFormData(product);
+    setFormData({
+      name: product.name,
+      price: product.price,
+      description: product.description,
+      category: product.category,
+      images: product.images || []
+    });
     setCurrentPage('add');
   };
 
@@ -327,26 +339,73 @@ const App = () => {
     const uniformCount = products.filter((p) => p.category === 'Uniform').length;
     const moreCount = products.filter((p) => p.category === 'More').length;
 
+    if (loading) {
+      return (
+        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ fontSize: '24px', color: '#7c3aed' }}>Loading...</div>
+        </div>
+      );
+    }
+
     return (
       <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
         <header style={{
-          background: 'linear-gradient(rgba(233, 213, 255, 0.9), rgba(243, 232, 255, 0.9))',
-          padding: '80px 20px',
+          position: 'relative',
+          padding: '60px 20px',
           minHeight: '500px',
+          overflow: 'hidden',
+          backgroundColor: '#e9d5ff',
         }}>
-          <div style={{ maxWidth: '1200px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '40px' }}>
-            <div style={{ flex: '1', minWidth: '300px' }}>
+          {Landing && (
+            <>
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundImage: `url(${Landing})`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+                backgroundRepeat: 'no-repeat',
+                opacity: 0.3,
+                zIndex: 1
+              }}></div>
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'linear-gradient(135deg, rgba(233, 213, 255, 0.85), rgba(216, 180, 254, 0.75))',
+                zIndex: 2
+              }}></div>
+            </>
+          )}
+          <div style={{ 
+            maxWidth: '1200px', 
+            margin: '0 auto',
+            position: 'relative',
+            zIndex: 3
+          }}>
+            <div style={{ maxWidth: '600px' }}>
               <h1 style={{
-                fontSize: '56px',
+                fontSize: '52px',
                 fontWeight: 'bold',
                 color: '#581c87',
-                marginBottom: '20px',
+                marginBottom: '16px',
                 fontFamily: 'Georgia, serif',
                 lineHeight: '1.2',
               }}>
                 Tailored Perfection for Every Style
               </h1>
-              <p style={{ color: '#7c3aed', marginBottom: '24px', fontSize: '18px' }}>
+              <p style={{ 
+                color: '#6b21a8', 
+                marginBottom: '32px', 
+                fontSize: '18px',
+                fontFamily: 'Georgia, serif',
+                fontStyle: 'italic'
+              }}>
                 From Fabric to Fashion – Designed by Artisans
               </p>
               <button
@@ -367,25 +426,6 @@ const App = () => {
               >
                 View More
               </button>
-            </div>
-            <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
-              <img 
-                src={Landing} 
-                alt="Fashion 1" 
-                style={{  position: 'relative',backgroundSize: 'cover',
-  backgroundPosition: 'center',display: 'flex',
-  alignItems: 'center',width: '100%', height: '100%', objectFit: 'cover', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
-              />
-              {/* <img 
-                src="https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=200&h=300&fit=crop" 
-                alt="Fashion 2" 
-                style={{ width: '150px', height: '220px', objectFit: 'cover', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
-              />
-              <img 
-                src="https://images.unsplash.com/photo-1515372039744-b8f02a3ae446?w=200&h=300&fit=crop" 
-                alt="Fashion 3" 
-                style={{ width: '150px', height: '220px', objectFit: 'cover', borderRadius: '12px', boxShadow: '0 10px 25px rgba(0,0,0,0.2)' }}
-              /> */}
             </div>
           </div>
         </header>
@@ -608,13 +648,17 @@ const App = () => {
             type="text"
             placeholder="Search for anything..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={(e) => {
+              const newValue = e.target.value;
+              setSearchTerm(newValue);
+            }}
             style={{
               flex: 1,
               padding: '12px',
               border: '1px solid #d1d5db',
               borderRadius: '8px',
               fontSize: '16px',
+              boxSizing: 'border-box',
             }}
           />
           <button style={{
@@ -709,14 +753,20 @@ const App = () => {
               <input
                 type="text"
                 placeholder="Enter product name"
-                value={formData.name}
-                onChange={(e) => handleFormChange('name', e.target.value)}
+                defaultValue={formData.name}
+                onBlur={(e) => {
+                  setFormData(prev => ({ ...prev, name: e.target.value }));
+                }}
+                onKeyUp={(e) => {
+                  setFormData(prev => ({ ...prev, name: e.target.value }));
+                }}
                 style={{
                   width: '100%',
                   padding: '12px',
                   border: '1px solid #d1d5db',
                   borderRadius: '8px',
                   fontSize: '16px',
+                  boxSizing: 'border-box',
                 }}
               />
             </div>
@@ -730,14 +780,20 @@ const App = () => {
                 min="0.01"
                 step="0.01"
                 placeholder="Enter product price"
-                value={formData.price}
-                onChange={(e) => handleFormChange('price', e.target.value)}
+                defaultValue={formData.price}
+                onBlur={(e) => {
+                  setFormData(prev => ({ ...prev, price: e.target.value }));
+                }}
+                onKeyUp={(e) => {
+                  setFormData(prev => ({ ...prev, price: e.target.value }));
+                }}
                 style={{
                   width: '100%',
                   padding: '12px',
                   border: '1px solid #d1d5db',
                   borderRadius: '8px',
                   fontSize: '16px',
+                  boxSizing: 'border-box',
                 }}
               />
             </div>
@@ -748,8 +804,13 @@ const App = () => {
               </label>
               <textarea
                 placeholder="Enter product description"
-                value={formData.description}
-                onChange={(e) => handleFormChange('description', e.target.value)}
+                defaultValue={formData.description}
+                onBlur={(e) => {
+                  setFormData(prev => ({ ...prev, description: e.target.value }));
+                }}
+                onKeyUp={(e) => {
+                  setFormData(prev => ({ ...prev, description: e.target.value }));
+                }}
                 style={{
                   width: '100%',
                   padding: '12px',
@@ -758,6 +819,7 @@ const App = () => {
                   fontSize: '16px',
                   minHeight: '120px',
                   fontFamily: 'inherit',
+                  boxSizing: 'border-box',
                 }}
               />
             </div>
@@ -768,13 +830,17 @@ const App = () => {
               </label>
               <select
                 value={formData.category}
-                onChange={(e) => handleFormChange('category', e.target.value)}
+                onChange={(e) => {
+                  const newValue = e.target.value;
+                  setFormData(prev => ({ ...prev, category: newValue }));
+                }}
                 style={{
                   width: '100%',
                   padding: '12px',
                   border: '1px solid #d1d5db',
                   borderRadius: '8px',
                   fontSize: '16px',
+                  boxSizing: 'border-box',
                 }}
               >
                 <option>Wedding</option>
@@ -822,7 +888,7 @@ const App = () => {
                       <button
                         onClick={() => {
                           const newImages = formData.images.filter((_, i) => i !== idx);
-                          handleFormChange('images', newImages);
+                          setFormData({ ...formData, images: newImages });
                         }}
                         style={{
                           position: 'absolute',
@@ -907,13 +973,17 @@ const App = () => {
               type="text"
               placeholder="Search by Anything ...."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={(e) => {
+                const newValue = e.target.value;
+                setSearchTerm(newValue);
+              }}
               style={{
                 width: '100%',
                 padding: '12px',
                 border: '1px solid #d1d5db',
                 borderRadius: '8px',
                 fontSize: '16px',
+                boxSizing: 'border-box',
               }}
             />
           </div>
