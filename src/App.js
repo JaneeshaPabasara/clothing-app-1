@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import Landing from './Landing page Artisons.jpg';
+import './App.css';
+import Landing from './Landing.jpg';
 import { db } from './firebase';
 import {
   collection,
@@ -16,41 +17,26 @@ const App = () => {
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({
-    name: '',
-    price: '',
-    description: '',
-    category: 'Wedding',
-    images: []
-  });
   const [editingProduct, setEditingProduct] = useState(null);
+
+  // Refs for form inputs
+  const nameRef = useRef(null);
+  const priceRef = useRef(null);
+  const descriptionRef = useRef(null);
+  const categoryRef = useRef(null);
+  const searchListingRef = useRef(null);
+  const searchViewRef = useRef(null);
+  
+  const [images, setImages] = useState([]);
 
   useEffect(() => {
     loadProducts();
   }, []);
 
   useEffect(() => {
-    let filtered = [...products];
-
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(
-        (p) => p.category.toLowerCase() === selectedCategory.toLowerCase()
-      );
-    }
-
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (p) =>
-          p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.category.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    setFilteredProducts(filtered);
-  }, [products, selectedCategory, searchTerm]);
+    filterProducts();
+  }, [products, selectedCategory]);
 
   const loadProducts = async () => {
     try {
@@ -70,6 +56,33 @@ const App = () => {
     }
   };
 
+  const filterProducts = () => {
+    let filtered = [...products];
+
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(
+        (p) => p.category.toLowerCase() === selectedCategory.toLowerCase()
+      );
+    }
+
+    // Search filtering happens in real-time via refs
+    const searchTerm = searchListingRef.current?.value || searchViewRef.current?.value || '';
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (p) =>
+          p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          p.category.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    setFilteredProducts(filtered);
+  };
+
+  const handleSearch = () => {
+    filterProducts();
+  };
+
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
     const imagePromises = files.map((file) => {
@@ -80,32 +93,34 @@ const App = () => {
       });
     });
 
-    Promise.all(imagePromises).then((images) => {
-      setFormData(prev => ({ 
-        ...prev, 
-        images: [...prev.images, ...images] 
-      }));
+    Promise.all(imagePromises).then((newImages) => {
+      setImages(prev => [...prev, ...newImages]);
     });
   };
 
   const addProduct = async () => {
-    if (!formData.name || !formData.price) {
+    const name = nameRef.current?.value || '';
+    const price = priceRef.current?.value || '';
+    const description = descriptionRef.current?.value || '';
+    const category = categoryRef.current?.value || 'Wedding';
+
+    if (!name || !price) {
       alert('Please fill in Product Name and Price');
       return;
     }
 
-    if (parseFloat(formData.price) <= 0) {
+    if (parseFloat(price) <= 0) {
       alert('Price must be greater than 0');
       return;
     }
 
     try {
       const productData = {
-        name: formData.name,
-        price: formData.price,
-        description: formData.description,
-        category: formData.category,
-        images: formData.images || []
+        name,
+        price,
+        description,
+        category,
+        images: images || []
       };
 
       if (editingProduct) {
@@ -118,13 +133,12 @@ const App = () => {
         alert('Product added successfully!');
       }
       
-      setFormData({
-        name: '',
-        price: '',
-        description: '',
-        category: 'Wedding',
-        images: [],
-      });
+      // Clear form
+      if (nameRef.current) nameRef.current.value = '';
+      if (priceRef.current) priceRef.current.value = '';
+      if (descriptionRef.current) descriptionRef.current.value = '';
+      if (categoryRef.current) categoryRef.current.value = 'Wedding';
+      setImages([]);
       
       await loadProducts();
       setCurrentPage('view');
@@ -149,14 +163,16 @@ const App = () => {
 
   const startEdit = (product) => {
     setEditingProduct(product);
-    setFormData({
-      name: product.name,
-      price: product.price,
-      description: product.description,
-      category: product.category,
-      images: product.images || []
-    });
+    setImages(product.images || []);
     setCurrentPage('add');
+    
+    // Set values after page changes
+    setTimeout(() => {
+      if (nameRef.current) nameRef.current.value = product.name;
+      if (priceRef.current) priceRef.current.value = product.price;
+      if (descriptionRef.current) descriptionRef.current.value = product.description;
+      if (categoryRef.current) categoryRef.current.value = product.category;
+    }, 0);
   };
 
   const CategoryCard = ({ title, count, image, category }) => (
@@ -165,33 +181,12 @@ const App = () => {
         setSelectedCategory(category);
         setCurrentPage('listing');
       }}
-      style={{
-        position: 'relative',
-        borderRadius: '16px',
-        overflow: 'hidden',
-        cursor: 'pointer',
-        height: '250px',
-        transition: 'transform 0.3s',
-      }}
-      onMouseOver={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-      onMouseOut={(e) => e.currentTarget.style.transform = 'scale(1)'}
+      className="category-card"
     >
-      <img
-        src={image}
-        alt={title}
-        style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'brightness(0.7)' }}
-      />
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        color: 'white',
-      }}>
-        <h3 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '8px' }}>{title}</h3>
-        <p style={{ fontSize: '16px' }}>{count} listings</p>
+      <img src={image} alt={title} />
+      <div className="category-overlay">
+        <h3>{title}</h3>
+        <p>{count} listings</p>
       </div>
     </div>
   );
@@ -200,62 +195,34 @@ const App = () => {
     const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
     return (
-      <div style={{
-        backgroundColor: 'white',
-        borderRadius: '12px',
-        boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-        overflow: 'hidden',
-      }}>
-        <div style={{ position: 'relative', height: '250px', backgroundColor: '#e5e7eb' }}>
+      <div className="product-card">
+        <div className="product-image">
           {product.images && product.images.length > 0 ? (
             <>
               <img
                 src={product.images[currentImageIndex]}
                 alt={product.name}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               />
               {product.images.length > 1 && (
                 <>
                   <button
+                    className="nav-btn left"
                     onClick={(e) => {
                       e.stopPropagation();
                       setCurrentImageIndex((prev) =>
                         prev > 0 ? prev - 1 : product.images.length - 1
                       );
                     }}
-                    style={{
-                      position: 'absolute',
-                      left: '8px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      backgroundColor: 'rgba(255,255,255,0.8)',
-                      borderRadius: '50%',
-                      padding: '8px 12px',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontSize: '20px',
-                    }}
                   >
                     ‹
                   </button>
                   <button
+                    className="nav-btn right"
                     onClick={(e) => {
                       e.stopPropagation();
                       setCurrentImageIndex((prev) =>
                         prev < product.images.length - 1 ? prev + 1 : 0
                       );
-                    }}
-                    style={{
-                      position: 'absolute',
-                      right: '8px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      backgroundColor: 'rgba(255,255,255,0.8)',
-                      borderRadius: '50%',
-                      padding: '8px 12px',
-                      border: 'none',
-                      cursor: 'pointer',
-                      fontSize: '20px',
                     }}
                   >
                     ›
@@ -264,20 +231,11 @@ const App = () => {
               )}
             </>
           ) : (
-            <div style={{
-              width: '100%',
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#9ca3af',
-            }}>
-              No Image
-            </div>
+            <div className="no-image">No Image</div>
           )}
         </div>
         <div
-          style={{ padding: '16px', cursor: showActions ? 'default' : 'pointer' }}
+          className="product-info"
           onClick={() => {
             if (!showActions) {
               setSelectedProduct(product);
@@ -285,46 +243,16 @@ const App = () => {
             }
           }}
         >
-          <h3 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px' }}>
-            ${product.price}
-          </h3>
-          <h4 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '4px' }}>
-            {product.name}
-          </h4>
-          <p style={{ fontSize: '14px', color: '#6b7280', marginBottom: '8px' }}>
-            {product.description}
-          </p>
-          <p style={{ fontSize: '14px', color: '#9ca3af' }}>Category: {product.category}</p>
+          <h3 className="product-price">${product.price}</h3>
+          <h4 className="product-name">{product.name}</h4>
+          <p className="product-description">{product.description}</p>
+          <p className="product-category">Category: {product.category}</p>
           {showActions && (
-            <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
-              <button
-                onClick={() => startEdit(product)}
-                style={{
-                  flex: 1,
-                  backgroundColor: '#7c3aed',
-                  color: 'white',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                }}
-              >
+            <div className="product-actions">
+              <button onClick={() => startEdit(product)} className="btn-edit">
                 ✎ Edit
               </button>
-              <button
-                onClick={() => deleteProduct(product.id)}
-                style={{
-                  flex: 1,
-                  backgroundColor: '#dc2626',
-                  color: 'white',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontWeight: '600',
-                }}
-              >
+              <button onClick={() => deleteProduct(product.id)} className="btn-delete">
                 🗑 Delete
               </button>
             </div>
@@ -341,88 +269,25 @@ const App = () => {
 
     if (loading) {
       return (
-        <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{ fontSize: '24px', color: '#7c3aed' }}>Loading...</div>
+        <div className="loading-container">
+          <div className="loading-text">Loading...</div>
         </div>
       );
     }
 
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
-        <header style={{
-          position: 'relative',
-          padding: '60px 20px',
-          minHeight: '500px',
-          overflow: 'hidden',
-          backgroundColor: '#e9d5ff',
-        }}>
-          {Landing && (
-            <>
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                backgroundImage: `url(${Landing})`,
-                backgroundSize: 'cover',
-                backgroundPosition: 'center',
-                backgroundRepeat: 'no-repeat',
-                opacity: 0.3,
-                zIndex: 1
-              }}></div>
-              <div style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                background: 'linear-gradient(135deg, rgba(233, 213, 255, 0.85), rgba(216, 180, 254, 0.75))',
-                zIndex: 2
-              }}></div>
-            </>
-          )}
-          <div style={{ 
-            maxWidth: '1200px', 
-            margin: '0 auto',
-            position: 'relative',
-            zIndex: 3
-          }}>
-            <div style={{ maxWidth: '600px' }}>
-              <h1 style={{
-                fontSize: '52px',
-                fontWeight: 'bold',
-                color: '#581c87',
-                marginBottom: '16px',
-                fontFamily: 'Georgia, serif',
-                lineHeight: '1.2',
-              }}>
-                Tailored Perfection for Every Style
-              </h1>
-              <p style={{ 
-                color: '#6b21a8', 
-                marginBottom: '32px', 
-                fontSize: '18px',
-                fontFamily: 'Georgia, serif',
-                fontStyle: 'italic'
-              }}>
-                From Fabric to Fashion – Designed by Artisans
-              </p>
+      <div className="home-page">
+        <header className="hero-section" style={{ backgroundImage: `url(${Landing})` }}>
+          <div className="hero-content">
+            <div className="hero-text">
+              <h1>Tailored Perfection for Every Style</h1>
+              <p>From Fabric to Fashion – Designed by Artisans</p>
               <button
                 onClick={() => {
                   setSelectedCategory('all');
                   setCurrentPage('listing');
                 }}
-                style={{
-                  backgroundColor: '#7c3aed',
-                  color: 'white',
-                  padding: '14px 32px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  cursor: 'pointer',
-                  fontSize: '16px',
-                  fontWeight: '600',
-                }}
+                className="btn-primary"
               >
                 View More
               </button>
@@ -430,36 +295,16 @@ const App = () => {
           </div>
         </header>
 
-        <section style={{ padding: '80px 20px', backgroundColor: 'white' }}>
-          <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-            <h2 style={{
-              fontSize: '48px',
-              fontWeight: 'bold',
-              textAlign: 'center',
-              marginBottom: '16px',
-              fontFamily: 'Georgia, serif',
-            }}>
-              Artisans
-            </h2>
-            <p style={{
-              textAlign: 'center',
-              color: '#6b7280',
-              marginBottom: '60px',
-              maxWidth: '700px',
-              margin: '0 auto 60px',
-              fontSize: '18px',
-              lineHeight: '1.6',
-            }}>
+        <section className="about-section">
+          <div className="container">
+            <h2>Artisans</h2>
+            <p className="about-text">
               We create handmade, modern clothing tailored to your unique style.
               Whether it's casual, formal, or something special, we bring your
               ideas to life—made just the way you want.
             </p>
 
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
-              gap: '24px',
-            }}>
+            <div className="category-grid">
               <CategoryCard
                 title="Wedding"
                 count={weddingCount}
@@ -482,68 +327,19 @@ const App = () => {
           </div>
         </section>
 
-        <section style={{ padding: '80px 20px', backgroundColor: '#f9fafb' }}>
-          <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-            <h2 style={{
-              fontSize: '48px',
-              fontWeight: 'bold',
-              textAlign: 'center',
-              marginBottom: '60px',
-              fontFamily: 'Georgia, serif',
-            }}>
-              Inventory
-            </h2>
-            <div style={{
-              backgroundColor: '#e9d5ff',
-              borderRadius: '16px',
-              padding: '40px',
-            }}>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginBottom: '32px',
-                flexWrap: 'wrap',
-                gap: '16px',
-              }}>
-                <h3 style={{ fontSize: '24px', fontWeight: 'bold' }}>Add New Product</h3>
-                <button
-                  onClick={() => setCurrentPage('add')}
-                  style={{
-                    backgroundColor: 'white',
-                    color: '#7c3aed',
-                    padding: '12px 24px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                    fontSize: '16px',
-                  }}
-                >
+        <section className="inventory-section">
+          <div className="container">
+            <h2>Inventory</h2>
+            <div className="inventory-card">
+              <div className="inventory-row">
+                <h3>Add New Product</h3>
+                <button onClick={() => setCurrentPage('add')} className="btn-secondary">
                   Add +
                 </button>
               </div>
-              <div style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: '16px',
-              }}>
-                <h3 style={{ fontSize: '24px', fontWeight: 'bold' }}>View All Products</h3>
-                <button
-                  onClick={() => setCurrentPage('view')}
-                  style={{
-                    backgroundColor: 'white',
-                    color: '#7c3aed',
-                    padding: '12px 24px',
-                    borderRadius: '8px',
-                    border: 'none',
-                    cursor: 'pointer',
-                    fontWeight: '600',
-                    fontSize: '16px',
-                  }}
-                >
+              <div className="inventory-row">
+                <h3>View All Products</h3>
+                <button onClick={() => setCurrentPage('view')} className="btn-secondary">
                   View
                 </button>
               </div>
@@ -551,73 +347,36 @@ const App = () => {
           </div>
         </section>
 
-        <footer style={{ backgroundColor: '#3b0764', color: 'white', padding: '60px 20px' }}>
-          <div style={{
-            maxWidth: '1200px',
-            margin: '0 auto',
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-            gap: '40px',
-          }}>
-            <div>
-              <h3 style={{
-                fontSize: '28px',
-                fontWeight: 'bold',
-                marginBottom: '16px',
-                fontFamily: 'Georgia, serif',
-                fontStyle: 'italic',
-              }}>
-                Artisans
-              </h3>
-              <p style={{ fontSize: '14px', color: '#e9d5ff' }}>
-                Where your style meets our craftsmanship.
-              </p>
+        <footer className="footer">
+          <div className="footer-content">
+            <div className="footer-col">
+              <h3>Artisans</h3>
+              <p>Where your style meets our craftsmanship.</p>
             </div>
-            <div>
-              <h4 style={{ fontWeight: 'bold', marginBottom: '16px' }}>Quick Links</h4>
-              <ul style={{ listStyle: 'none', padding: 0, color: '#e9d5ff', fontSize: '14px' }}>
-                <li style={{ marginBottom: '8px', cursor: 'pointer' }}>Home</li>
-                <li style={{ marginBottom: '8px', cursor: 'pointer' }}>Browse Categories</li>
-                <li style={{ marginBottom: '8px', cursor: 'pointer' }}>Featured Listings</li>
-                <li style={{ marginBottom: '8px', cursor: 'pointer' }}>My Account</li>
+            <div className="footer-col">
+              <h4>Quick Links</h4>
+              <ul>
+                <li>Home</li>
+                <li>Browse Categories</li>
+                <li>Featured Listings</li>
+                <li>My Account</li>
               </ul>
             </div>
-            <div>
-              <h4 style={{ fontWeight: 'bold', marginBottom: '16px' }}>Categories</h4>
-              <ul style={{ listStyle: 'none', padding: 0, color: '#e9d5ff', fontSize: '14px' }}>
-                <li style={{ marginBottom: '8px', cursor: 'pointer' }}>Wedding</li>
-                <li style={{ marginBottom: '8px', cursor: 'pointer' }}>Uniform</li>
-                <li style={{ marginBottom: '8px', cursor: 'pointer' }}>More</li>
+            <div className="footer-col">
+              <h4>Categories</h4>
+              <ul>
+                <li>Wedding</li>
+                <li>Uniform</li>
+                <li>More</li>
               </ul>
             </div>
-            <div>
-              <h4 style={{ fontWeight: 'bold', marginBottom: '16px' }}>Contact Us</h4>
-              <input
-                type="email"
-                placeholder="Email"
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  marginBottom: '8px',
-                  borderRadius: '4px',
-                  border: 'none',
-                  color: '#000',
-                }}
-              />
-              <textarea
-                placeholder="Message..."
-                style={{
-                  width: '100%',
-                  padding: '10px',
-                  borderRadius: '4px',
-                  border: 'none',
-                  color: '#000',
-                  minHeight: '80px',
-                }}
-              ></textarea>
+            <div className="footer-col">
+              <h4>Contact Us</h4>
+              <input type="email" placeholder="Email" />
+              <textarea placeholder="Message..."></textarea>
             </div>
           </div>
-          <div style={{ textAlign: 'center', marginTop: '40px', fontSize: '14px', color: '#e9d5ff' }}>
+          <div className="footer-bottom">
             © 2025 artisons. All rights reserved.
           </div>
         </footer>
@@ -626,433 +385,169 @@ const App = () => {
   };
 
   const ListingPage = () => (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb', padding: '20px' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <button
-          onClick={() => setCurrentPage('home')}
-          style={{
-            marginBottom: '20px',
-            padding: '10px 16px',
-            border: '2px solid #000',
-            borderRadius: '50%',
-            backgroundColor: 'white',
-            cursor: 'pointer',
-            fontSize: '18px',
-          }}
-        >
+    <div className="page-container">
+      <div className="container">
+        <button onClick={() => setCurrentPage('home')} className="back-btn">
           ←
         </button>
 
-        <div style={{ marginBottom: '24px', display: 'flex', gap: '8px', maxWidth: '500px' }}>
+        <div className="search-container">
           <input
+            ref={searchListingRef}
             type="text"
             placeholder="Search for anything..."
-            value={searchTerm}
-            onChange={(e) => {
-              const newValue = e.target.value;
-              setSearchTerm(newValue);
-            }}
-            style={{
-              flex: 1,
-              padding: '12px',
-              border: '1px solid #d1d5db',
-              borderRadius: '8px',
-              fontSize: '16px',
-              boxSizing: 'border-box',
-            }}
+            onKeyUp={handleSearch}
           />
-          <button style={{
-            backgroundColor: '#7c3aed',
-            color: 'white',
-            padding: '12px 24px',
-            borderRadius: '8px',
-            border: 'none',
-            cursor: 'pointer',
-          }}>
-            🔍
-          </button>
+          <button onClick={handleSearch} className="btn-primary">🔍</button>
         </div>
 
-        <h2 style={{ fontSize: '36px', fontWeight: 'bold', marginBottom: '32px' }}>
+        <h2 className="page-title">
           {selectedCategory === 'all' ? 'All Products' : selectedCategory}
         </h2>
 
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-          gap: '24px',
-          marginBottom: '40px',
-        }}>
+        <div className="products-grid">
           {filteredProducts.map((product) => (
             <ProductCard key={product.id} product={product} />
           ))}
         </div>
 
         {filteredProducts.length === 0 && (
-          <div style={{
-            textAlign: 'center',
-            padding: '60px 20px',
-            color: '#6b7280',
-            fontSize: '18px',
-          }}>
-            No products found
-          </div>
+          <div className="no-products">No products found</div>
         )}
       </div>
     </div>
   );
 
   const AddProductPage = () => (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb', padding: '20px' }}>
-      <div style={{ maxWidth: '700px', margin: '0 auto' }}>
+    <div className="page-container">
+      <div className="container-small">
         <button
           onClick={() => {
             setCurrentPage('home');
             setEditingProduct(null);
-            setFormData({
-              name: '',
-              price: '',
-              description: '',
-              category: 'Wedding',
-              images: [],
-            });
+            setImages([]);
+            if (nameRef.current) nameRef.current.value = '';
+            if (priceRef.current) priceRef.current.value = '';
+            if (descriptionRef.current) descriptionRef.current.value = '';
           }}
-          style={{
-            marginBottom: '20px',
-            padding: '10px 16px',
-            border: '2px solid #000',
-            borderRadius: '50%',
-            backgroundColor: 'white',
-            cursor: 'pointer',
-            fontSize: '18px',
-          }}
+          className="back-btn"
         >
           ←
         </button>
 
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '16px',
-          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-          padding: '40px',
-        }}>
-          <h2 style={{
-            fontSize: '32px',
-            fontWeight: 'bold',
-            marginBottom: '32px',
-            fontFamily: 'Georgia, serif',
-          }}>
-            {editingProduct ? 'Edit Product' : 'Add new product'}
-          </h2>
+        <div className="form-card">
+          <h2>{editingProduct ? 'Edit Product' : 'Add new product'}</h2>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div>
-              <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px' }}>
-                Product Name
-              </label>
-              <input
-                type="text"
-                placeholder="Enter product name"
-                defaultValue={formData.name}
-                onBlur={(e) => {
-                  setFormData(prev => ({ ...prev, name: e.target.value }));
-                }}
-                onKeyUp={(e) => {
-                  setFormData(prev => ({ ...prev, name: e.target.value }));
-                }}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '8px',
-                  fontSize: '16px',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px' }}>
-                Product Price
-              </label>
-              <input
-                type="number"
-                min="0.01"
-                step="0.01"
-                placeholder="Enter product price"
-                defaultValue={formData.price}
-                onBlur={(e) => {
-                  setFormData(prev => ({ ...prev, price: e.target.value }));
-                }}
-                onKeyUp={(e) => {
-                  setFormData(prev => ({ ...prev, price: e.target.value }));
-                }}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '8px',
-                  fontSize: '16px',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px' }}>
-                Product Description
-              </label>
-              <textarea
-                placeholder="Enter product description"
-                defaultValue={formData.description}
-                onBlur={(e) => {
-                  setFormData(prev => ({ ...prev, description: e.target.value }));
-                }}
-                onKeyUp={(e) => {
-                  setFormData(prev => ({ ...prev, description: e.target.value }));
-                }}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '8px',
-                  fontSize: '16px',
-                  minHeight: '120px',
-                  fontFamily: 'inherit',
-                  boxSizing: 'border-box',
-                }}
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px' }}>
-                Product Category
-              </label>
-              <select
-                value={formData.category}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  setFormData(prev => ({ ...prev, category: newValue }));
-                }}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '8px',
-                  fontSize: '16px',
-                  boxSizing: 'border-box',
-                }}
-              >
-                <option>Wedding</option>
-                <option>Uniform</option>
-                <option>More</option>
-              </select>
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontWeight: '600', marginBottom: '8px' }}>
-                Attach Images
-              </label>
-              <input
-                type="file"
-                multiple
-                accept="image/*"
-                onChange={handleImageUpload}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  border: '1px solid #d1d5db',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                }}
-              />
-              {formData.images.length > 0 && (
-                <div style={{
-                  marginTop: '16px',
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(4, 1fr)',
-                  gap: '8px',
-                }}>
-                  {formData.images.map((img, idx) => (
-                    <div key={idx} style={{ position: 'relative' }}>
-                      <img
-                        src={img}
-                        alt={`Preview ${idx}`}
-                        style={{
-                          width: '100%',
-                          height: '100px',
-                          objectFit: 'cover',
-                          borderRadius: '8px',
-                        }}
-                      />
-                      <button
-                        onClick={() => {
-                          const newImages = formData.images.filter((_, i) => i !== idx);
-                          setFormData({ ...formData, images: newImages });
-                        }}
-                        style={{
-                          position: 'absolute',
-                          top: '4px',
-                          right: '4px',
-                          backgroundColor: '#dc2626',
-                          color: 'white',
-                          borderRadius: '50%',
-                          width: '24px',
-                          height: '24px',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontSize: '16px',
-                          lineHeight: '1',
-                        }}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <button
-              onClick={addProduct}
-              style={{
-                width: '100%',
-                backgroundColor: '#7c3aed',
-                color: 'white',
-                padding: '14px',
-                borderRadius: '8px',
-                border: 'none',
-                cursor: 'pointer',
-                fontWeight: '600',
-                fontSize: '16px',
-              }}
-            >
-              {editingProduct ? 'Update' : 'Add'}
-            </button>
+          <div className="form-group">
+            <label>Product Name</label>
+            <input
+              ref={nameRef}
+              type="text"
+              placeholder="Enter product name"
+            />
           </div>
+
+          <div className="form-group">
+            <label>Product Price</label>
+            <input
+              ref={priceRef}
+              type="number"
+              min="0.01"
+              step="0.01"
+              placeholder="Enter product price"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Product Description</label>
+            <textarea
+              ref={descriptionRef}
+              placeholder="Enter product description"
+            />
+          </div>
+
+          <div className="form-group">
+            <label>Product Category</label>
+            <select ref={categoryRef} defaultValue="Wedding">
+              <option>Wedding</option>
+              <option>Uniform</option>
+              <option>More</option>
+            </select>
+          </div>
+
+          <div className="form-group">
+            <label>Attach Images</label>
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleImageUpload}
+            />
+            {images.length > 0 && (
+              <div className="image-preview-grid">
+                {images.map((img, idx) => (
+                  <div key={idx} className="image-preview">
+                    <img src={img} alt={`Preview ${idx}`} />
+                    <button
+                      onClick={() => {
+                        setImages(images.filter((_, i) => i !== idx));
+                      }}
+                      className="remove-image"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <button onClick={addProduct} className="btn-submit">
+            {editingProduct ? 'Update' : 'Add'}
+          </button>
         </div>
       </div>
     </div>
   );
 
   const ViewAllPage = () => (
-    <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb', padding: '20px' }}>
-      <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-        <button
-          onClick={() => setCurrentPage('home')}
-          style={{
-            marginBottom: '20px',
-            padding: '10px 16px',
-            border: '2px solid #000',
-            borderRadius: '50%',
-            backgroundColor: 'white',
-            cursor: 'pointer',
-            fontSize: '18px',
-          }}
-        >
+    <div className="page-container">
+      <div className="container-small">
+        <button onClick={() => setCurrentPage('home')} className="back-btn">
           ←
         </button>
 
-        <div style={{
-          backgroundColor: 'white',
-          borderRadius: '16px',
-          boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-          padding: '40px',
-        }}>
-          <h2 style={{
-            fontSize: '32px',
-            fontWeight: 'bold',
-            marginBottom: '32px',
-            fontFamily: 'Georgia, serif',
-          }}>
-            All Products
-          </h2>
+        <div className="form-card">
+          <h2>All Products</h2>
 
-          <div style={{ marginBottom: '24px' }}>
+          <div className="search-single">
             <input
+              ref={searchViewRef}
               type="text"
               placeholder="Search by Anything ...."
-              value={searchTerm}
-              onChange={(e) => {
-                const newValue = e.target.value;
-                setSearchTerm(newValue);
-              }}
-              style={{
-                width: '100%',
-                padding: '12px',
-                border: '1px solid #d1d5db',
-                borderRadius: '8px',
-                fontSize: '16px',
-                boxSizing: 'border-box',
-              }}
+              onKeyUp={handleSearch}
             />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+          <div className="product-list">
             {filteredProducts.map((product) => (
-              <div
-                key={product.id}
-                style={{
-                  border: '2px solid #7c3aed',
-                  borderRadius: '12px',
-                  padding: '20px',
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
-                  <div style={{ flex: 1 }}>
-                    <h3 style={{ fontSize: '22px', fontWeight: 'bold', marginBottom: '8px' }}>
-                      {product.name}
-                    </h3>
-                    <p style={{ color: '#6b7280', marginBottom: '4px' }}>
-                      Price - ${product.price}
-                    </p>
-                    <p style={{ color: '#6b7280', marginBottom: '4px' }}>
-                      Category - {product.category}
-                    </p>
-                    <p style={{ color: '#6b7280' }}>{product.description}</p>
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <button
-                      onClick={() => startEdit(product)}
-                      style={{
-                        padding: '8px 12px',
-                        backgroundColor: 'white',
-                        border: '1px solid #d1d5db',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '18px',
-                      }}
-                    >
-                      ✎
-                    </button>
-                    <button
-                      onClick={() => deleteProduct(product.id)}
-                      style={{
-                        padding: '8px 12px',
-                        backgroundColor: 'white',
-                        border: '1px solid #d1d5db',
-                        borderRadius: '6px',
-                        cursor: 'pointer',
-                        fontSize: '18px',
-                      }}
-                    >
-                      🗑
-                    </button>
-                  </div>
+              <div key={product.id} className="product-list-item">
+                <div>
+                  <h3>{product.name}</h3>
+                  <p>Price - ${product.price}</p>
+                  <p>Category - {product.category}</p>
+                  <p>{product.description}</p>
+                </div>
+                <div className="list-actions">
+                  <button onClick={() => startEdit(product)}>✎</button>
+                  <button onClick={() => deleteProduct(product.id)}>🗑</button>
                 </div>
               </div>
             ))}
           </div>
 
           {filteredProducts.length === 0 && (
-            <div style={{
-              textAlign: 'center',
-              padding: '60px 20px',
-              color: '#6b7280',
-              fontSize: '18px',
-            }}>
-              No products found
-            </div>
+            <div className="no-products">No products found</div>
           )}
         </div>
       </div>
@@ -1065,82 +560,43 @@ const App = () => {
     if (!selectedProduct) return null;
 
     return (
-      <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb', padding: '20px' }}>
-        <div style={{ maxWidth: '900px', margin: '0 auto' }}>
-          <button
-            onClick={() => setCurrentPage('listing')}
-            style={{
-              marginBottom: '20px',
-              padding: '10px 16px',
-              border: '2px solid #000',
-              borderRadius: '50%',
-              backgroundColor: 'white',
-              cursor: 'pointer',
-              fontSize: '18px',
-            }}
-          >
+      <div className="page-container">
+        <div className="container-small">
+          <button onClick={() => setCurrentPage('listing')} className="back-btn">
             ←
           </button>
 
-          <div style={{ fontSize: '14px', color: '#6b7280', marginBottom: '16px' }}>
+          <div className="breadcrumb">
             {selectedProduct.category} &gt; {selectedProduct.name}
           </div>
 
-          <div style={{
-            backgroundColor: 'white',
-            borderRadius: '16px',
-            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-            overflow: 'hidden',
-          }}>
-            <div style={{ position: 'relative', height: '500px', backgroundColor: '#e5e7eb' }}>
+          <div className="detail-card">
+            <div className="detail-image">
               {selectedProduct.images && selectedProduct.images.length > 0 ? (
                 <>
                   <img
                     src={selectedProduct.images[currentImageIndex]}
                     alt={selectedProduct.name}
-                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   />
                   {selectedProduct.images.length > 1 && (
                     <>
                       <button
+                        className="nav-btn-large left"
                         onClick={() =>
                           setCurrentImageIndex((prev) =>
                             prev > 0 ? prev - 1 : selectedProduct.images.length - 1
                           )
                         }
-                        style={{
-                          position: 'absolute',
-                          left: '16px',
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          backgroundColor: 'rgba(255,255,255,0.9)',
-                          borderRadius: '50%',
-                          padding: '12px 16px',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontSize: '24px',
-                        }}
                       >
                         ‹
                       </button>
                       <button
+                        className="nav-btn-large right"
                         onClick={() =>
                           setCurrentImageIndex((prev) =>
                             prev < selectedProduct.images.length - 1 ? prev + 1 : 0
                           )
                         }
-                        style={{
-                          position: 'absolute',
-                          right: '16px',
-                          top: '50%',
-                          transform: 'translateY(-50%)',
-                          backgroundColor: 'rgba(255,255,255,0.9)',
-                          borderRadius: '50%',
-                          padding: '12px 16px',
-                          border: 'none',
-                          cursor: 'pointer',
-                          fontSize: '24px',
-                        }}
                       >
                         ›
                       </button>
@@ -1148,35 +604,16 @@ const App = () => {
                   )}
                 </>
               ) : (
-                <div style={{
-                  width: '100%',
-                  height: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: '#9ca3af',
-                  fontSize: '18px',
-                }}>
-                  No Image
-                </div>
+                <div className="no-image-large">No Image</div>
               )}
             </div>
 
-            <div style={{ padding: '40px' }}>
-              <h1 style={{ fontSize: '40px', fontWeight: 'bold', marginBottom: '8px' }}>
-                $ {selectedProduct.price}
-              </h1>
-              <h2 style={{ fontSize: '28px', fontWeight: '600', marginBottom: '32px' }}>
-                {selectedProduct.name}
-              </h2>
-
+            <div className="detail-info">
+              <h1>$ {selectedProduct.price}</h1>
+              <h2>{selectedProduct.name}</h2>
               <div>
-                <h3 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '12px' }}>
-                  Description
-                </h3>
-                <p style={{ color: '#4b5563', fontSize: '16px', lineHeight: '1.6' }}>
-                  {selectedProduct.description}
-                </p>
+                <h3>Description</h3>
+                <p>{selectedProduct.description}</p>
               </div>
             </div>
           </div>
@@ -1186,74 +623,16 @@ const App = () => {
   };
 
   return (
-    <div>
-      <nav style={{
-        backgroundColor: '#e9d5ff',
-        padding: '16px 20px',
-        position: 'sticky',
-        top: 0,
-        zIndex: 1000,
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-      }}>
-        <div style={{
-          maxWidth: '1200px',
-          margin: '0 auto',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-        }}>
-          <h1
-            onClick={() => setCurrentPage('home')}
-            style={{
-              fontSize: '28px',
-              fontWeight: 'bold',
-              color: '#581c87',
-              cursor: 'pointer',
-              fontFamily: 'Georgia, serif',
-              fontStyle: 'italic',
-              margin: 0,
-            }}
-          >
-            Artisans
-          </h1>
-          <div style={{ display: 'flex', gap: '24px', color: '#4b5563', fontSize: '16px' }}>
-            <button style={{
-              background: 'none',
-              border: 'none',
-              color: '#4b5563',
-              cursor: 'pointer',
-              fontSize: '16px',
-            }}>
-              About
-            </button>
-            <button style={{
-              background: 'none',
-              border: 'none',
-              color: '#4b5563',
-              cursor: 'pointer',
-              fontSize: '16px',
-            }}>
-              Contact
-            </button>
-            <button style={{
-              background: 'none',
-              border: 'none',
-              color: '#4b5563',
-              cursor: 'pointer',
-              fontSize: '16px',
-            }}>
-              Help
-            </button>
-            <span style={{ color: '#9ca3af' }}>|</span>
-            <button style={{
-              background: 'none',
-              border: 'none',
-              color: '#4b5563',
-              cursor: 'pointer',
-              fontSize: '16px',
-            }}>
-              Login
-            </button>
+    <div className="app">
+      <nav className="navbar">
+        <div className="nav-content">
+          <h1 onClick={() => setCurrentPage('home')}>Artisans</h1>
+          <div className="nav-links">
+            <button>About</button>
+            <button>Contact</button>
+            <button>Help</button>
+            <span>|</span>
+            <button>Login</button>
           </div>
         </div>
       </nav>
