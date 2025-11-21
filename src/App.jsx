@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo } from 'react';
+import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
 import './App.css';
 import Landing from './assets/Landing.jpg';
 import { db } from './firebase';
@@ -104,15 +104,15 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [images, setImages] = useState([]);
 
-  // Form state
-  const [formData, setFormData] = useState({
-    name: '',
-    price: '',
-    description: '',
-    category: 'Wedding',
-    images: []
-  });
+  // Use refs for form inputs to avoid re-render issues
+  const nameInputRef = useRef(null);
+  const priceInputRef = useRef(null);
+  const descriptionInputRef = useRef(null);
+  const categoryInputRef = useRef(null);
+  const searchListingRef = useRef(null);
+  const searchViewRef = useRef(null);
 
   useEffect(() => {
     loadProducts();
@@ -173,20 +173,22 @@ const App = () => {
     });
 
     Promise.all(imagePromises).then((newImages) => {
-      setFormData(prev => ({
-        ...prev,
-        images: [...prev.images, ...newImages]
-      }));
+      setImages(prev => [...prev, ...newImages]);
     });
   };
 
   const addProduct = async () => {
-    if (!formData.name || !formData.price) {
+    const name = nameInputRef.current?.value || '';
+    const price = priceInputRef.current?.value || '';
+    const description = descriptionInputRef.current?.value || '';
+    const category = categoryInputRef.current?.value || 'Wedding';
+
+    if (!name || !price) {
       alert('Please fill in Product Name and Price');
       return;
     }
 
-    if (parseFloat(formData.price) <= 0) {
+    if (parseFloat(price) <= 0) {
       alert('Price must be greater than 0');
       return;
     }
@@ -194,11 +196,11 @@ const App = () => {
     try {
       setSaving(true);
       const productData = {
-        name: formData.name,
-        price: formData.price,
-        description: formData.description,
-        category: formData.category,
-        images: formData.images || []
+        name,
+        price,
+        description,
+        category,
+        images: images || []
       };
 
       if (editingProduct) {
@@ -210,13 +212,12 @@ const App = () => {
         alert('Product added successfully!');
       }
       
-      setFormData({
-        name: '',
-        price: '',
-        description: '',
-        category: 'Wedding',
-        images: [],
-      });
+      // Clear form
+      if (nameInputRef.current) nameInputRef.current.value = '';
+      if (priceInputRef.current) priceInputRef.current.value = '';
+      if (descriptionInputRef.current) descriptionInputRef.current.value = '';
+      if (categoryInputRef.current) categoryInputRef.current.value = 'Wedding';
+      setImages([]);
       
       await loadProducts();
       setCurrentPage('view');
@@ -243,14 +244,16 @@ const App = () => {
 
   const startEdit = useCallback((product) => {
     setEditingProduct(product);
-    setFormData({
-      name: product.name,
-      price: product.price,
-      description: product.description,
-      category: product.category,
-      images: product.images || []
-    });
+    setImages(product.images || []);
     setCurrentPage('add');
+    
+    // Set values with a small delay to ensure refs are ready
+    setTimeout(() => {
+      if (nameInputRef.current) nameInputRef.current.value = product.name;
+      if (priceInputRef.current) priceInputRef.current.value = product.price;
+      if (descriptionInputRef.current) descriptionInputRef.current.value = product.description;
+      if (categoryInputRef.current) categoryInputRef.current.value = product.category;
+    }, 50);
   }, []);
 
   const handleCategoryClick = useCallback((category) => {
@@ -261,6 +264,11 @@ const App = () => {
   const handleViewProduct = useCallback((product) => {
     setSelectedProduct(product);
     setCurrentPage('detail');
+  }, []);
+
+  const handleSearchChange = useCallback(() => {
+    const searchValue = searchListingRef.current?.value || searchViewRef.current?.value || '';
+    setSearchTerm(searchValue);
   }, []);
 
   const HomePage = () => {
@@ -281,7 +289,7 @@ const App = () => {
         <header className="hero-section" style={{ backgroundImage: `url(${Landing})` }}>
           <div className="hero-content">
             <div className="hero-text">
-              <h1>Tailored Perfection for Every Style</h1>
+              <h1>Tailored Perfection for Every Style..</h1>
               <p>From Fabric to Fashion – Designed by Artisans</p>
               <button
                 onClick={() => {
@@ -397,10 +405,11 @@ const App = () => {
 
         <div className="search-container">
           <input
+            ref={searchListingRef}
             type="text"
             placeholder="Search for anything..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onInput={handleSearchChange}
+            defaultValue={searchTerm}
           />
           <button className="btn-primary">🔍</button>
         </div>
@@ -433,13 +442,11 @@ const App = () => {
           onClick={() => {
             setCurrentPage('home');
             setEditingProduct(null);
-            setFormData({
-              name: '',
-              price: '',
-              description: '',
-              category: 'Wedding',
-              images: [],
-            });
+            setImages([]);
+            if (nameInputRef.current) nameInputRef.current.value = '';
+            if (priceInputRef.current) priceInputRef.current.value = '';
+            if (descriptionInputRef.current) descriptionInputRef.current.value = '';
+            if (categoryInputRef.current) categoryInputRef.current.value = 'Wedding';
           }}
           className="back-btn"
         >
@@ -452,40 +459,37 @@ const App = () => {
           <div className="form-group">
             <label>Product Name</label>
             <input
+              ref={nameInputRef}
               type="text"
               placeholder="Enter product name"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+              defaultValue=""
             />
           </div>
 
           <div className="form-group">
             <label>Product Price</label>
             <input
+              ref={priceInputRef}
               type="number"
               min="0.01"
               step="0.01"
               placeholder="Enter product price"
-              value={formData.price}
-              onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
+              defaultValue=""
             />
           </div>
 
           <div className="form-group">
             <label>Product Description</label>
             <textarea
+              ref={descriptionInputRef}
               placeholder="Enter product description"
-              value={formData.description}
-              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              defaultValue=""
             />
           </div>
 
           <div className="form-group">
             <label>Product Category</label>
-            <select 
-              value={formData.category}
-              onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
-            >
+            <select ref={categoryInputRef} defaultValue="Wedding">
               <option>Wedding</option>
               <option>Uniform</option>
               <option>More</option>
@@ -500,17 +504,14 @@ const App = () => {
               accept="image/*"
               onChange={handleImageUpload}
             />
-            {formData.images.length > 0 && (
+            {images.length > 0 && (
               <div className="image-preview-grid">
-                {formData.images.map((img, idx) => (
+                {images.map((img, idx) => (
                   <div key={idx} className="image-preview">
                     <img src={img} alt={`Preview ${idx}`} />
                     <button
                       onClick={() => {
-                        setFormData(prev => ({
-                          ...prev,
-                          images: prev.images.filter((_, i) => i !== idx)
-                        }));
+                        setImages(images.filter((_, i) => i !== idx));
                       }}
                       className="remove-image"
                     >
@@ -546,10 +547,11 @@ const App = () => {
 
           <div className="search-single">
             <input
+              ref={searchViewRef}
               type="text"
               placeholder="Search by Anything ...."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onInput={handleSearchChange}
+              defaultValue={searchTerm}
             />
           </div>
 
