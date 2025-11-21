@@ -457,6 +457,32 @@ const App = () => {
           <h2>{editingProduct ? 'Edit Product' : 'Add new product'}</h2>
 
           <div className="form-group">
+            <label>Attach Images</label>
+            <input
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={handleImageUpload}
+            />
+            {images.length > 0 && (
+              <div className="image-preview-grid">
+                {images.map((img, idx) => (
+                  <div key={idx} className="image-preview">
+                    <img src={img} alt={`Preview ${idx}`} />
+                    <button
+                      onClick={() => {
+                        setImages(images.filter((_, i) => i !== idx));
+                      }}
+                      className="remove-image"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          <div className="form-group">
             <label>Product Name</label>
             <input
               ref={nameInputRef}
@@ -465,7 +491,7 @@ const App = () => {
               defaultValue=""
             />
           </div>
-
+          
           <div className="form-group">
             <label>Product Price</label>
             <input
@@ -496,32 +522,7 @@ const App = () => {
             </select>
           </div>
 
-          <div className="form-group">
-            <label>Attach Images</label>
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={handleImageUpload}
-            />
-            {images.length > 0 && (
-              <div className="image-preview-grid">
-                {images.map((img, idx) => (
-                  <div key={idx} className="image-preview">
-                    <img src={img} alt={`Preview ${idx}`} />
-                    <button
-                      onClick={() => {
-                        setImages(images.filter((_, i) => i !== idx));
-                      }}
-                      className="remove-image"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          
 
           <button 
             onClick={addProduct} 
