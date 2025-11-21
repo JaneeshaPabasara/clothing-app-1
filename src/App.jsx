@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, memo } from 'react';
 import './App.css';
-import Landing from './Landing.jpg';
+import Landing from './assets/Landing.jpg';
 import { db } from './firebase';
 import {
   collection,
@@ -11,24 +11,108 @@ import {
   doc,
 } from 'firebase/firestore';
 
+// Memoized Product Card Component
+const ProductCard = memo(({ product, showActions = false, onEdit, onDelete, onView }) => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  return (
+    <div className="product-card">
+      <div className="product-image">
+        {product.images && product.images.length > 0 ? (
+          <>
+            <img
+              src={product.images[currentImageIndex]}
+              alt={product.name}
+              loading="lazy"
+            />
+            {product.images.length > 1 && (
+              <>
+                <button
+                  className="nav-btn left"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentImageIndex((prev) =>
+                      prev > 0 ? prev - 1 : product.images.length - 1
+                    );
+                  }}
+                >
+                  ‹
+                </button>
+                <button
+                  className="nav-btn right"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setCurrentImageIndex((prev) =>
+                      prev < product.images.length - 1 ? prev + 1 : 0
+                    );
+                  }}
+                >
+                  ›
+                </button>
+              </>
+            )}
+          </>
+        ) : (
+          <div className="no-image">No Image</div>
+        )}
+      </div>
+      <div
+        className="product-info"
+        onClick={() => !showActions && onView(product)}
+      >
+        <h3 className="product-price">${product.price}</h3>
+        <h4 className="product-name">{product.name}</h4>
+        <p className="product-description">{product.description}</p>
+        <p className="product-category">Category: {product.category}</p>
+        {showActions && (
+          <div className="product-actions">
+            <button onClick={() => onEdit(product)} className="btn-edit">
+              ✎ Edit
+            </button>
+            <button onClick={() => onDelete(product.id)} className="btn-delete">
+              🗑 Delete
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+});
+
+ProductCard.displayName = 'ProductCard';
+
+// Memoized Category Card
+const CategoryCard = memo(({ title, count, image, category, onClick }) => (
+  <div onClick={() => onClick(category)} className="category-card">
+    <img src={image} alt={title} loading="lazy" />
+    <div className="category-overlay">
+      <h3>{title}</h3>
+      <p>{count} listings</p>
+    </div>
+  </div>
+));
+
+CategoryCard.displayName = 'CategoryCard';
+
 const App = () => {
   const [currentPage, setCurrentPage] = useState('home');
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedProduct, setSelectedProduct] = useState(null);
+  const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
 
-  // Refs for form inputs
-  const nameRef = useRef(null);
-  const priceRef = useRef(null);
-  const descriptionRef = useRef(null);
-  const categoryRef = useRef(null);
-  const searchListingRef = useRef(null);
-  const searchViewRef = useRef(null);
-  
-  const [images, setImages] = useState([]);
+  // Form state
+  const [formData, setFormData] = useState({
+    name: '',
+    price: '',
+    description: '',
+    category: 'Wedding',
+    images: []
+  });
 
   useEffect(() => {
     loadProducts();
@@ -36,7 +120,7 @@ const App = () => {
 
   useEffect(() => {
     filterProducts();
-  }, [products, selectedCategory]);
+  }, [products, selectedCategory, searchTerm]);
 
   const loadProducts = async () => {
     try {
@@ -46,7 +130,6 @@ const App = () => {
         id: doc.id,
         ...doc.data(),
       }));
-      console.log('Loaded products:', productsData);
       setProducts(productsData);
     } catch (error) {
       console.error('Error loading products:', error);
@@ -56,7 +139,7 @@ const App = () => {
     }
   };
 
-  const filterProducts = () => {
+  const filterProducts = useCallback(() => {
     let filtered = [...products];
 
     if (selectedCategory !== 'all') {
@@ -65,26 +148,22 @@ const App = () => {
       );
     }
 
-    // Search filtering happens in real-time via refs
-    const searchTerm = searchListingRef.current?.value || searchViewRef.current?.value || '';
     if (searchTerm) {
+      const term = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (p) =>
-          p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          p.category.toLowerCase().includes(searchTerm.toLowerCase())
+          p.name.toLowerCase().includes(term) ||
+          p.description.toLowerCase().includes(term) ||
+          p.category.toLowerCase().includes(term)
       );
     }
 
     setFilteredProducts(filtered);
-  };
-
-  const handleSearch = () => {
-    filterProducts();
-  };
+  }, [products, selectedCategory, searchTerm]);
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
+    
     const imagePromises = files.map((file) => {
       return new Promise((resolve) => {
         const reader = new FileReader();
@@ -94,33 +173,32 @@ const App = () => {
     });
 
     Promise.all(imagePromises).then((newImages) => {
-      setImages(prev => [...prev, ...newImages]);
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, ...newImages]
+      }));
     });
   };
 
   const addProduct = async () => {
-    const name = nameRef.current?.value || '';
-    const price = priceRef.current?.value || '';
-    const description = descriptionRef.current?.value || '';
-    const category = categoryRef.current?.value || 'Wedding';
-
-    if (!name || !price) {
+    if (!formData.name || !formData.price) {
       alert('Please fill in Product Name and Price');
       return;
     }
 
-    if (parseFloat(price) <= 0) {
+    if (parseFloat(formData.price) <= 0) {
       alert('Price must be greater than 0');
       return;
     }
 
     try {
+      setSaving(true);
       const productData = {
-        name,
-        price,
-        description,
-        category,
-        images: images || []
+        name: formData.name,
+        price: formData.price,
+        description: formData.description,
+        category: formData.category,
+        images: formData.images || []
       };
 
       if (editingProduct) {
@@ -128,23 +206,25 @@ const App = () => {
         alert('Product updated successfully!');
         setEditingProduct(null);
       } else {
-        const docRef = await addDoc(collection(db, 'products'), productData);
-        console.log('Product added with ID:', docRef.id);
+        await addDoc(collection(db, 'products'), productData);
         alert('Product added successfully!');
       }
       
-      // Clear form
-      if (nameRef.current) nameRef.current.value = '';
-      if (priceRef.current) priceRef.current.value = '';
-      if (descriptionRef.current) descriptionRef.current.value = '';
-      if (categoryRef.current) categoryRef.current.value = 'Wedding';
-      setImages([]);
+      setFormData({
+        name: '',
+        price: '',
+        description: '',
+        category: 'Wedding',
+        images: [],
+      });
       
       await loadProducts();
       setCurrentPage('view');
     } catch (error) {
       console.error('Error adding/updating product:', error);
       alert('Error saving product: ' + error.message);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -161,106 +241,27 @@ const App = () => {
     }
   };
 
-  const startEdit = (product) => {
+  const startEdit = useCallback((product) => {
     setEditingProduct(product);
-    setImages(product.images || []);
+    setFormData({
+      name: product.name,
+      price: product.price,
+      description: product.description,
+      category: product.category,
+      images: product.images || []
+    });
     setCurrentPage('add');
-    
-    // Set values after page changes
-    setTimeout(() => {
-      if (nameRef.current) nameRef.current.value = product.name;
-      if (priceRef.current) priceRef.current.value = product.price;
-      if (descriptionRef.current) descriptionRef.current.value = product.description;
-      if (categoryRef.current) categoryRef.current.value = product.category;
-    }, 0);
-  };
+  }, []);
 
-  const CategoryCard = ({ title, count, image, category }) => (
-    <div
-      onClick={() => {
-        setSelectedCategory(category);
-        setCurrentPage('listing');
-      }}
-      className="category-card"
-    >
-      <img src={image} alt={title} />
-      <div className="category-overlay">
-        <h3>{title}</h3>
-        <p>{count} listings</p>
-      </div>
-    </div>
-  );
+  const handleCategoryClick = useCallback((category) => {
+    setSelectedCategory(category);
+    setCurrentPage('listing');
+  }, []);
 
-  const ProductCard = ({ product, showActions = false }) => {
-    const [currentImageIndex, setCurrentImageIndex] = useState(0);
-
-    return (
-      <div className="product-card">
-        <div className="product-image">
-          {product.images && product.images.length > 0 ? (
-            <>
-              <img
-                src={product.images[currentImageIndex]}
-                alt={product.name}
-              />
-              {product.images.length > 1 && (
-                <>
-                  <button
-                    className="nav-btn left"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCurrentImageIndex((prev) =>
-                        prev > 0 ? prev - 1 : product.images.length - 1
-                      );
-                    }}
-                  >
-                    ‹
-                  </button>
-                  <button
-                    className="nav-btn right"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setCurrentImageIndex((prev) =>
-                        prev < product.images.length - 1 ? prev + 1 : 0
-                      );
-                    }}
-                  >
-                    ›
-                  </button>
-                </>
-              )}
-            </>
-          ) : (
-            <div className="no-image">No Image</div>
-          )}
-        </div>
-        <div
-          className="product-info"
-          onClick={() => {
-            if (!showActions) {
-              setSelectedProduct(product);
-              setCurrentPage('detail');
-            }
-          }}
-        >
-          <h3 className="product-price">${product.price}</h3>
-          <h4 className="product-name">{product.name}</h4>
-          <p className="product-description">{product.description}</p>
-          <p className="product-category">Category: {product.category}</p>
-          {showActions && (
-            <div className="product-actions">
-              <button onClick={() => startEdit(product)} className="btn-edit">
-                ✎ Edit
-              </button>
-              <button onClick={() => deleteProduct(product.id)} className="btn-delete">
-                🗑 Delete
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
+  const handleViewProduct = useCallback((product) => {
+    setSelectedProduct(product);
+    setCurrentPage('detail');
+  }, []);
 
   const HomePage = () => {
     const weddingCount = products.filter((p) => p.category === 'Wedding').length;
@@ -310,18 +311,21 @@ const App = () => {
                 count={weddingCount}
                 category="Wedding"
                 image="https://images.unsplash.com/photo-1519741497674-611481863552?w=400"
+                onClick={handleCategoryClick}
               />
               <CategoryCard
                 title="Uniform"
                 count={uniformCount}
                 category="Uniform"
                 image="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400"
+                onClick={handleCategoryClick}
               />
               <CategoryCard
                 title="More"
                 count={moreCount}
                 category="More"
                 image="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400"
+                onClick={handleCategoryClick}
               />
             </div>
           </div>
@@ -393,12 +397,12 @@ const App = () => {
 
         <div className="search-container">
           <input
-            ref={searchListingRef}
             type="text"
             placeholder="Search for anything..."
-            onKeyUp={handleSearch}
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
           />
-          <button onClick={handleSearch} className="btn-primary">🔍</button>
+          <button className="btn-primary">🔍</button>
         </div>
 
         <h2 className="page-title">
@@ -407,7 +411,11 @@ const App = () => {
 
         <div className="products-grid">
           {filteredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
+            <ProductCard 
+              key={product.id} 
+              product={product}
+              onView={handleViewProduct}
+            />
           ))}
         </div>
 
@@ -425,10 +433,13 @@ const App = () => {
           onClick={() => {
             setCurrentPage('home');
             setEditingProduct(null);
-            setImages([]);
-            if (nameRef.current) nameRef.current.value = '';
-            if (priceRef.current) priceRef.current.value = '';
-            if (descriptionRef.current) descriptionRef.current.value = '';
+            setFormData({
+              name: '',
+              price: '',
+              description: '',
+              category: 'Wedding',
+              images: [],
+            });
           }}
           className="back-btn"
         >
@@ -441,34 +452,40 @@ const App = () => {
           <div className="form-group">
             <label>Product Name</label>
             <input
-              ref={nameRef}
               type="text"
               placeholder="Enter product name"
+              value={formData.name}
+              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
             />
           </div>
 
           <div className="form-group">
             <label>Product Price</label>
             <input
-              ref={priceRef}
               type="number"
               min="0.01"
               step="0.01"
               placeholder="Enter product price"
+              value={formData.price}
+              onChange={(e) => setFormData(prev => ({ ...prev, price: e.target.value }))}
             />
           </div>
 
           <div className="form-group">
             <label>Product Description</label>
             <textarea
-              ref={descriptionRef}
               placeholder="Enter product description"
+              value={formData.description}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
             />
           </div>
 
           <div className="form-group">
             <label>Product Category</label>
-            <select ref={categoryRef} defaultValue="Wedding">
+            <select 
+              value={formData.category}
+              onChange={(e) => setFormData(prev => ({ ...prev, category: e.target.value }))}
+            >
               <option>Wedding</option>
               <option>Uniform</option>
               <option>More</option>
@@ -483,14 +500,17 @@ const App = () => {
               accept="image/*"
               onChange={handleImageUpload}
             />
-            {images.length > 0 && (
+            {formData.images.length > 0 && (
               <div className="image-preview-grid">
-                {images.map((img, idx) => (
+                {formData.images.map((img, idx) => (
                   <div key={idx} className="image-preview">
                     <img src={img} alt={`Preview ${idx}`} />
                     <button
                       onClick={() => {
-                        setImages(images.filter((_, i) => i !== idx));
+                        setFormData(prev => ({
+                          ...prev,
+                          images: prev.images.filter((_, i) => i !== idx)
+                        }));
                       }}
                       className="remove-image"
                     >
@@ -502,8 +522,12 @@ const App = () => {
             )}
           </div>
 
-          <button onClick={addProduct} className="btn-submit">
-            {editingProduct ? 'Update' : 'Add'}
+          <button 
+            onClick={addProduct} 
+            className="btn-submit"
+            disabled={saving}
+          >
+            {saving ? 'Saving...' : (editingProduct ? 'Update' : 'Add')}
           </button>
         </div>
       </div>
@@ -522,10 +546,10 @@ const App = () => {
 
           <div className="search-single">
             <input
-              ref={searchViewRef}
               type="text"
               placeholder="Search by Anything ...."
-              onKeyUp={handleSearch}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
