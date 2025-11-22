@@ -100,7 +100,8 @@ const HomePage = memo(({
   products, 
   handleCategoryClick, 
   setCurrentPage, 
-  setSelectedCategory 
+  setSelectedCategory,
+  handleViewAllProducts
 }) => {
   const weddingCount = products.filter((p) => p.category === 'Wedding').length;
   const uniformCount = products.filter((p) => p.category === 'Uniform').length;
@@ -181,7 +182,7 @@ const HomePage = memo(({
             </div>
             <div className="inventory-row">
               <h3>View All Products</h3>
-              <button onClick={() => setCurrentPage('view')} className="btn-secondary">
+              <button onClick={handleViewAllProducts} className="btn-secondary">
                 View 
               </button>
             </div>
@@ -696,6 +697,12 @@ const App = () => {
     setCurrentPage('listing');
   }, []);
 
+  const handleViewAllProducts = useCallback(() => {
+    setSelectedCategory('all');
+    setSearchQuery('');
+    setCurrentPage('view');
+  }, []);
+
   const handleViewProduct = useCallback((product) => {
     setSelectedProduct(product);
     setCurrentPage('detail');
@@ -723,6 +730,7 @@ const App = () => {
           handleCategoryClick={handleCategoryClick}
           setCurrentPage={setCurrentPage}
           setSelectedCategory={setSelectedCategory}
+          handleViewAllProducts={handleViewAllProducts}
         />
       )}
       {currentPage === 'listing' && (
