@@ -11,6 +11,10 @@
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+@font-face {
+  font-family: 'parisienne';
+  src: local('parisienne'), url(./fonts/Parisienne-Regular.ttf) format('truetype');
+}
 
 /* Navbar */
 .navbar {
@@ -35,8 +39,7 @@
   font-weight: bold;
   color: #321E58;
   cursor: pointer;
-  font-family: "Parisienne", cursive;
-  
+  font-family: "Parisienne", cursive;  
 }
 
 .nav-links {
@@ -630,7 +633,7 @@
   font-size: 28px;
   font-weight: bold;
   margin-bottom: 16px;
-  font-family: Georgia, serif;
+  font-family: "Parisienne", cursive;
   font-style: italic;
 }
 

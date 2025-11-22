@@ -182,7 +182,7 @@ const HomePage = memo(({
             <div className="inventory-row">
               <h3>View All Products</h3>
               <button onClick={() => setCurrentPage('view')} className="btn-secondary">
-                View
+                View 
               </button>
             </div>
           </div>
