@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, memo, useRef } from 'react';
+import React, { useState, useEffect, useCallback, memo, useRef, useMemo } from 'react';
 import './App.css';
 import Landing from './assets/Landing.jpg';
 import { db } from './firebase';
@@ -94,13 +94,437 @@ const CategoryCard = memo(({ title, count, image, category, onClick }) => (
 
 CategoryCard.displayName = 'CategoryCard';
 
+// HomePage Component - Outside App
+const HomePage = memo(({ 
+  loading, 
+  products, 
+  handleCategoryClick, 
+  setCurrentPage, 
+  setSelectedCategory 
+}) => {
+  const weddingCount = products.filter((p) => p.category === 'Wedding').length;
+  const uniformCount = products.filter((p) => p.category === 'Uniform').length;
+  const moreCount = products.filter((p) => p.category === 'More').length;
+
+  if (loading) {
+    return (
+      <div className="loading-container">
+        <div className="loading-text">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="home-page">
+      <header className="hero-section" style={{ backgroundImage: `url(${Landing})` }}>
+        <div className="hero-content">
+          <div className="hero-text">
+            <h1>Tailored Perfection for Every Style..</h1>
+            <p>From Fabric to Fashion – Designed by Artisans</p>
+            <button
+              onClick={() => {
+                setSelectedCategory('all');
+                setCurrentPage('listing');
+              }}
+              className="btn-primary"
+            >
+              View More
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <section className="about-section">
+        <div className="container">
+          <h2>Artisans</h2>
+          <p className="about-text">
+            We create handmade, modern clothing tailored to your unique style.
+            Whether it's casual, formal, or something special, we bring your
+            ideas to life—made just the way you want.
+          </p>
+
+          <div className="category-grid">
+            <CategoryCard
+              title="Wedding"
+              count={weddingCount}
+              category="Wedding"
+              image="https://images.unsplash.com/photo-1519741497674-611481863552?w=400"
+              onClick={handleCategoryClick}
+            />
+            <CategoryCard
+              title="Uniform"
+              count={uniformCount}
+              category="Uniform"
+              image="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400"
+              onClick={handleCategoryClick}
+            />
+            <CategoryCard
+              title="More"
+              count={moreCount}
+              category="More"
+              image="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400"
+              onClick={handleCategoryClick}
+            />
+          </div>
+        </div>
+      </section>
+
+      <section className="inventory-section">
+        <div className="container">
+          <h2>Inventory</h2>
+          <div className="inventory-card">
+            <div className="inventory-row">
+              <h3>Add New Product</h3>
+              <button onClick={() => setCurrentPage('add')} className="btn-secondary">
+                Add +
+              </button>
+            </div>
+            <div className="inventory-row">
+              <h3>View All Products</h3>
+              <button onClick={() => setCurrentPage('view')} className="btn-secondary">
+                View
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer className="footer">
+        <div className="footer-content">
+          <div className="footer-col">
+            <h3>Artisans</h3>
+            <p>Where your style meets our craftsmanship.</p>
+          </div>
+          <div className="footer-col">
+            <h4>Quick Links</h4>
+            <ul>
+              <li>Home</li>
+              <li>Browse Categories</li>
+              <li>Featured Listings</li>
+              <li>My Account</li>
+            </ul>
+          </div>
+          <div className="footer-col">
+            <h4>Categories</h4>
+            <ul>
+              <li>Wedding</li>
+              <li>Uniform</li>
+              <li>More</li>
+            </ul>
+          </div>
+          <div className="footer-col">
+            <h4>Contact Us</h4>
+            <input type="email" placeholder="Email" />
+            <textarea placeholder="Message..."></textarea>
+          </div>
+        </div>
+        <div className="footer-bottom">
+          © 2025 artisons. All rights reserved.
+        </div>
+      </footer>
+    </div>
+  );
+});
+
+HomePage.displayName = 'HomePage';
+
+// ListingPage Component - Outside App
+const ListingPage = memo(({ 
+  setCurrentPage, 
+  searchQuery, 
+  setSearchQuery, 
+  selectedCategory, 
+  filteredProducts, 
+  handleViewProduct 
+}) => (
+  <div className="page-container">
+    <div className="container">
+      <button onClick={() => setCurrentPage('home')} className="back-btn">
+        ←
+      </button>
+
+      <div className="search-container">
+        <input
+          type="text"
+          placeholder="Search for anything..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          autoComplete="off"
+        />
+        <button className="btn-primary">🔍</button>
+      </div>
+
+      <h2 className="page-title">
+        {selectedCategory === 'all' ? 'All Products' : selectedCategory}
+      </h2>
+
+      <div className="products-grid">
+        {filteredProducts.map((product) => (
+          <ProductCard 
+            key={product.id} 
+            product={product}
+            onView={handleViewProduct}
+          />
+        ))}
+      </div>
+
+      {filteredProducts.length === 0 && (
+        <div className="no-products">No products found</div>
+      )}
+    </div>
+  </div>
+));
+
+ListingPage.displayName = 'ListingPage';
+
+// ViewAllPage Component - Outside App
+const ViewAllPage = memo(({ 
+  setCurrentPage, 
+  searchQuery, 
+  setSearchQuery, 
+  filteredProducts, 
+  startEdit, 
+  deleteProduct 
+}) => (
+  <div className="page-container">
+    <div className="container-small">
+      <button onClick={() => setCurrentPage('home')} className="back-btn">
+        ←
+      </button>
+
+      <div className="form-card">
+        <h2>All Products</h2>
+
+        <div className="search-single">
+          <input
+            type="text"
+            placeholder="Search by Anything ...."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            autoComplete="off"
+          />
+        </div>
+
+        <div className="product-list">
+          {filteredProducts.map((product) => (
+            <div key={product.id} className="product-list-item">
+              <div>
+                <h3>{product.name}</h3>
+                <p>Price - ${product.price}</p>
+                <p>Category - {product.category}</p>
+                <p>{product.description}</p>
+              </div>
+              <div className="list-actions">
+                <button onClick={() => startEdit(product)}>✎</button>
+                <button onClick={() => deleteProduct(product.id)}>🗑</button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {filteredProducts.length === 0 && (
+          <div className="no-products">No products found</div>
+        )}
+      </div>
+    </div>
+  </div>
+));
+
+ViewAllPage.displayName = 'ViewAllPage';
+
+// AddProductPage Component - Outside App
+const AddProductPage = memo(({ 
+  setCurrentPage, 
+  editingProduct, 
+  setEditingProduct, 
+  images, 
+  setImages, 
+  handleImageUpload, 
+  nameInputRef, 
+  priceInputRef, 
+  descriptionInputRef, 
+  categoryInputRef, 
+  addProduct, 
+  saving 
+}) => (
+  <div className="page-container">
+    <div className="container-small">
+      <button
+        onClick={() => {
+          setCurrentPage('home');
+          setEditingProduct(null);
+          setImages([]);
+          if (nameInputRef.current) nameInputRef.current.value = '';
+          if (priceInputRef.current) priceInputRef.current.value = '';
+          if (descriptionInputRef.current) descriptionInputRef.current.value = '';
+          if (categoryInputRef.current) categoryInputRef.current.value = 'Wedding';
+        }}
+        className="back-btn"
+      >
+        ←
+      </button>
+
+      <div className="form-card">
+        <h2>{editingProduct ? 'Edit Product' : 'Add new product'}</h2>
+
+        <div className="form-group">
+          <label>Attach Images</label>
+          <input
+            type="file"
+            multiple
+            accept="image/*"
+            onChange={handleImageUpload}
+          />
+          {images.length > 0 && (
+            <div className="image-preview-grid">
+              {images.map((img, idx) => (
+                <div key={idx} className="image-preview">
+                  <img src={img} alt={`Preview ${idx}`} />
+                  <button
+                    onClick={() => {
+                      setImages(images.filter((_, i) => i !== idx));
+                    }}
+                    className="remove-image"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className="form-group">
+          <label>Product Name</label>
+          <input
+            ref={nameInputRef}
+            type="text"
+            placeholder="Enter product name"
+            defaultValue=""
+          />
+        </div>
+        
+        <div className="form-group">
+          <label>Product Price</label>
+          <input
+            ref={priceInputRef}
+            type="number"
+            min="0.01"
+            step="0.01"
+            placeholder="Enter product price"
+            defaultValue=""
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Product Description</label>
+          <textarea
+            ref={descriptionInputRef}
+            placeholder="Enter product description"
+            defaultValue=""
+          />
+        </div>
+
+        <div className="form-group">
+          <label>Product Category</label>
+          <select ref={categoryInputRef} defaultValue="Wedding">
+            <option>Wedding</option>
+            <option>Uniform</option>
+            <option>More</option>
+          </select>
+        </div>
+
+        <button 
+          onClick={addProduct} 
+          className="btn-submit"
+          disabled={saving}
+        >
+          {saving ? 'Saving...' : (editingProduct ? 'Update' : 'Add')}
+        </button>
+      </div>
+    </div>
+  </div>
+));
+
+AddProductPage.displayName = 'AddProductPage';
+
+// ProductDetailPage Component - Outside App
+const ProductDetailPage = memo(({ selectedProduct, setCurrentPage }) => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+
+  if (!selectedProduct) return null;
+
+  return (
+    <div className="page-container">
+      <div className="container-small">
+        <button onClick={() => setCurrentPage('listing')} className="back-btn">
+          ←
+        </button>
+
+        <div className="breadcrumb">
+          {selectedProduct.category} &gt; {selectedProduct.name}
+        </div>
+
+        <div className="detail-card">
+          <div className="detail-image">
+            {selectedProduct.images && selectedProduct.images.length > 0 ? (
+              <>
+                <img
+                  src={selectedProduct.images[currentImageIndex]}
+                  alt={selectedProduct.name}
+                />
+                {selectedProduct.images.length > 1 && (
+                  <>
+                    <button
+                      className="nav-btn-large left"
+                      onClick={() =>
+                        setCurrentImageIndex((prev) =>
+                          prev > 0 ? prev - 1 : selectedProduct.images.length - 1
+                        )
+                      }
+                    >
+                      ‹
+                    </button>
+                    <button
+                      className="nav-btn-large right"
+                      onClick={() =>
+                        setCurrentImageIndex((prev) =>
+                          prev < selectedProduct.images.length - 1 ? prev + 1 : 0
+                        )
+                      }
+                    >
+                      ›
+                    </button>
+                  </>
+                )}
+              </>
+            ) : (
+              <div className="no-image-large">No Image</div>
+            )}
+          </div>
+
+          <div className="detail-info">
+            <h1>$ {selectedProduct.price}</h1>
+            <h2>{selectedProduct.name}</h2>
+            <div>
+              <h3>Description</h3>
+              <p>{selectedProduct.description}</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+ProductDetailPage.displayName = 'ProductDetailPage';
+
+// Main App Component
 const App = () => {
   const [currentPage, setCurrentPage] = useState('home');
   const [products, setProducts] = useState([]);
-  const [filteredProducts, setFilteredProducts] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedProduct, setSelectedProduct] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -111,16 +535,48 @@ const App = () => {
   const priceInputRef = useRef(null);
   const descriptionInputRef = useRef(null);
   const categoryInputRef = useRef(null);
-  const searchListingRef = useRef(null);
-  const searchViewRef = useRef(null);
 
   useEffect(() => {
     loadProducts();
   }, []);
 
-  useEffect(() => {
-    filterProducts();
-  }, [products, selectedCategory, searchTerm]);
+  // Filter products based on search query and category
+  const filteredProducts = useMemo(() => {
+    if (!products?.length) return [];
+    
+    let filtered = [...products];
+
+    // Filter by category
+    if (selectedCategory !== 'all') {
+      filtered = filtered.filter(
+        (p) => p.category.toLowerCase() === selectedCategory.toLowerCase()
+      );
+    }
+
+    // Filter by search query
+    if (!searchQuery) return filtered;
+    
+    const search = searchQuery.toLowerCase().trim();
+    
+    return filtered.filter(product => {
+      try {
+        const name = (product.name || '').toLowerCase();
+        const description = (product.description || '').toLowerCase();
+        const category = (product.category || '').toLowerCase();
+        const price = (product.price || '').toString().toLowerCase();
+        const id = (product.id || '').toString().toLowerCase();
+
+        return name.includes(search) ||
+               description.includes(search) ||
+               category.includes(search) ||
+               price.includes(search) ||
+               id.includes(search);
+      } catch (error) {
+        console.error('Error filtering product:', product, error);
+        return false;
+      }
+    });
+  }, [products, selectedCategory, searchQuery]);
 
   const loadProducts = async () => {
     try {
@@ -138,28 +594,6 @@ const App = () => {
       setLoading(false);
     }
   };
-
-  const filterProducts = useCallback(() => {
-    let filtered = [...products];
-
-    if (selectedCategory !== 'all') {
-      filtered = filtered.filter(
-        (p) => p.category.toLowerCase() === selectedCategory.toLowerCase()
-      );
-    }
-
-    if (searchTerm) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (p) =>
-          p.name.toLowerCase().includes(term) ||
-          p.description.toLowerCase().includes(term) ||
-          p.category.toLowerCase().includes(term)
-      );
-    }
-
-    setFilteredProducts(filtered);
-  }, [products, selectedCategory, searchTerm]);
 
   const handleImageUpload = (e) => {
     const files = Array.from(e.target.files);
@@ -258,6 +692,7 @@ const App = () => {
 
   const handleCategoryClick = useCallback((category) => {
     setSelectedCategory(category);
+    setSearchQuery('');
     setCurrentPage('listing');
   }, []);
 
@@ -265,389 +700,6 @@ const App = () => {
     setSelectedProduct(product);
     setCurrentPage('detail');
   }, []);
-
-  const handleSearchChange = useCallback(() => {
-    const searchValue = searchListingRef.current?.value || searchViewRef.current?.value || '';
-    setSearchTerm(searchValue);
-  }, []);
-
-  const HomePage = () => {
-    const weddingCount = products.filter((p) => p.category === 'Wedding').length;
-    const uniformCount = products.filter((p) => p.category === 'Uniform').length;
-    const moreCount = products.filter((p) => p.category === 'More').length;
-
-    if (loading) {
-      return (
-        <div className="loading-container">
-          <div className="loading-text">Loading...</div>
-        </div>
-      );
-    }
-
-    return (
-      <div className="home-page">
-        <header className="hero-section" style={{ backgroundImage: `url(${Landing})` }}>
-          <div className="hero-content">
-            <div className="hero-text">
-              <h1>Tailored Perfection for Every Style..</h1>
-              <p>From Fabric to Fashion – Designed by Artisans</p>
-              <button
-                onClick={() => {
-                  setSelectedCategory('all');
-                  setCurrentPage('listing');
-                }}
-                className="btn-primary"
-              >
-                View More
-              </button>
-            </div>
-          </div>
-        </header>
-
-        <section className="about-section">
-          <div className="container">
-            <h2>Artisans</h2>
-            <p className="about-text">
-              We create handmade, modern clothing tailored to your unique style.
-              Whether it's casual, formal, or something special, we bring your
-              ideas to life—made just the way you want.
-            </p>
-
-            <div className="category-grid">
-              <CategoryCard
-                title="Wedding"
-                count={weddingCount}
-                category="Wedding"
-                image="https://images.unsplash.com/photo-1519741497674-611481863552?w=400"
-                onClick={handleCategoryClick}
-              />
-              <CategoryCard
-                title="Uniform"
-                count={uniformCount}
-                category="Uniform"
-                image="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400"
-                onClick={handleCategoryClick}
-              />
-              <CategoryCard
-                title="More"
-                count={moreCount}
-                category="More"
-                image="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400"
-                onClick={handleCategoryClick}
-              />
-            </div>
-          </div>
-        </section>
-
-        <section className="inventory-section">
-          <div className="container">
-            <h2>Inventory</h2>
-            <div className="inventory-card">
-              <div className="inventory-row">
-                <h3>Add New Product</h3>
-                <button onClick={() => setCurrentPage('add')} className="btn-secondary">
-                  Add +
-                </button>
-              </div>
-              <div className="inventory-row">
-                <h3>View All Products</h3>
-                <button onClick={() => setCurrentPage('view')} className="btn-secondary">
-                  View
-                </button>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <footer className="footer">
-          <div className="footer-content">
-            <div className="footer-col">
-              <h3>Artisans</h3>
-              <p>Where your style meets our craftsmanship.</p>
-            </div>
-            <div className="footer-col">
-              <h4>Quick Links</h4>
-              <ul>
-                <li>Home</li>
-                <li>Browse Categories</li>
-                <li>Featured Listings</li>
-                <li>My Account</li>
-              </ul>
-            </div>
-            <div className="footer-col">
-              <h4>Categories</h4>
-              <ul>
-                <li>Wedding</li>
-                <li>Uniform</li>
-                <li>More</li>
-              </ul>
-            </div>
-            <div className="footer-col">
-              <h4>Contact Us</h4>
-              <input type="email" placeholder="Email" />
-              <textarea placeholder="Message..."></textarea>
-            </div>
-          </div>
-          <div className="footer-bottom">
-            © 2025 artisons. All rights reserved.
-          </div>
-        </footer>
-      </div>
-    );
-  };
-
-  const ListingPage = () => (
-    <div className="page-container">
-      <div className="container">
-        <button onClick={() => setCurrentPage('home')} className="back-btn">
-          ←
-        </button>
-
-        <div className="search-container">
-          <input
-            ref={searchListingRef}
-            type="text"
-            placeholder="Search for anything..."
-            onInput={handleSearchChange}
-            defaultValue={searchTerm}
-          />
-          <button className="btn-primary">🔍</button>
-        </div>
-
-        <h2 className="page-title">
-          {selectedCategory === 'all' ? 'All Products' : selectedCategory}
-        </h2>
-
-        <div className="products-grid">
-          {filteredProducts.map((product) => (
-            <ProductCard 
-              key={product.id} 
-              product={product}
-              onView={handleViewProduct}
-            />
-          ))}
-        </div>
-
-        {filteredProducts.length === 0 && (
-          <div className="no-products">No products found</div>
-        )}
-      </div>
-    </div>
-  );
-
-  const AddProductPage = () => (
-    <div className="page-container">
-      <div className="container-small">
-        <button
-          onClick={() => {
-            setCurrentPage('home');
-            setEditingProduct(null);
-            setImages([]);
-            if (nameInputRef.current) nameInputRef.current.value = '';
-            if (priceInputRef.current) priceInputRef.current.value = '';
-            if (descriptionInputRef.current) descriptionInputRef.current.value = '';
-            if (categoryInputRef.current) categoryInputRef.current.value = 'Wedding';
-          }}
-          className="back-btn"
-        >
-          ←
-        </button>
-
-        <div className="form-card">
-          <h2>{editingProduct ? 'Edit Product' : 'Add new product'}</h2>
-
-          <div className="form-group">
-            <label>Attach Images</label>
-            <input
-              type="file"
-              multiple
-              accept="image/*"
-              onChange={handleImageUpload}
-            />
-            {images.length > 0 && (
-              <div className="image-preview-grid">
-                {images.map((img, idx) => (
-                  <div key={idx} className="image-preview">
-                    <img src={img} alt={`Preview ${idx}`} />
-                    <button
-                      onClick={() => {
-                        setImages(images.filter((_, i) => i !== idx));
-                      }}
-                      className="remove-image"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-          <div className="form-group">
-            <label>Product Name</label>
-            <input
-              ref={nameInputRef}
-              type="text"
-              placeholder="Enter product name"
-              defaultValue=""
-            />
-          </div>
-          
-          <div className="form-group">
-            <label>Product Price</label>
-            <input
-              ref={priceInputRef}
-              type="number"
-              min="0.01"
-              step="0.01"
-              placeholder="Enter product price"
-              defaultValue=""
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Product Description</label>
-            <textarea
-              ref={descriptionInputRef}
-              placeholder="Enter product description"
-              defaultValue=""
-            />
-          </div>
-
-          <div className="form-group">
-            <label>Product Category</label>
-            <select ref={categoryInputRef} defaultValue="Wedding">
-              <option>Wedding</option>
-              <option>Uniform</option>
-              <option>More</option>
-            </select>
-          </div>
-
-          
-
-          <button 
-            onClick={addProduct} 
-            className="btn-submit"
-            disabled={saving}
-          >
-            {saving ? 'Saving...' : (editingProduct ? 'Update' : 'Add')}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
-  const ViewAllPage = () => (
-    <div className="page-container">
-      <div className="container-small">
-        <button onClick={() => setCurrentPage('home')} className="back-btn">
-          ←
-        </button>
-
-        <div className="form-card">
-          <h2>All Products</h2>
-
-          <div className="search-single">
-            <input
-              ref={searchViewRef}
-              type="text"
-              placeholder="Search by Anything ...."
-              onInput={handleSearchChange}
-              defaultValue={searchTerm}
-            />
-          </div>
-
-          <div className="product-list">
-            {filteredProducts.map((product) => (
-              <div key={product.id} className="product-list-item">
-                <div>
-                  <h3>{product.name}</h3>
-                  <p>Price - ${product.price}</p>
-                  <p>Category - {product.category}</p>
-                  <p>{product.description}</p>
-                </div>
-                <div className="list-actions">
-                  <button onClick={() => startEdit(product)}>✎</button>
-                  <button onClick={() => deleteProduct(product.id)}>🗑</button>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {filteredProducts.length === 0 && (
-            <div className="no-products">No products found</div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-
-  const ProductDetailPage = () => {
-    const [currentImageIndex, setCurrentImageIndex] = useState(0);
-
-    if (!selectedProduct) return null;
-
-    return (
-      <div className="page-container">
-        <div className="container-small">
-          <button onClick={() => setCurrentPage('listing')} className="back-btn">
-            ←
-          </button>
-
-          <div className="breadcrumb">
-            {selectedProduct.category} &gt; {selectedProduct.name}
-          </div>
-
-          <div className="detail-card">
-            <div className="detail-image">
-              {selectedProduct.images && selectedProduct.images.length > 0 ? (
-                <>
-                  <img
-                    src={selectedProduct.images[currentImageIndex]}
-                    alt={selectedProduct.name}
-                  />
-                  {selectedProduct.images.length > 1 && (
-                    <>
-                      <button
-                        className="nav-btn-large left"
-                        onClick={() =>
-                          setCurrentImageIndex((prev) =>
-                            prev > 0 ? prev - 1 : selectedProduct.images.length - 1
-                          )
-                        }
-                      >
-                        ‹
-                      </button>
-                      <button
-                        className="nav-btn-large right"
-                        onClick={() =>
-                          setCurrentImageIndex((prev) =>
-                            prev < selectedProduct.images.length - 1 ? prev + 1 : 0
-                          )
-                        }
-                      >
-                        ›
-                      </button>
-                    </>
-                  )}
-                </>
-              ) : (
-                <div className="no-image-large">No Image</div>
-              )}
-            </div>
-
-            <div className="detail-info">
-              <h1>$ {selectedProduct.price}</h1>
-              <h2>{selectedProduct.name}</h2>
-              <div>
-                <h3>Description</h3>
-                <p>{selectedProduct.description}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
 
   return (
     <div className="app">
@@ -664,11 +716,57 @@ const App = () => {
         </div>
       </nav>
 
-      {currentPage === 'home' && <HomePage />}
-      {currentPage === 'listing' && <ListingPage />}
-      {currentPage === 'add' && <AddProductPage />}
-      {currentPage === 'view' && <ViewAllPage />}
-      {currentPage === 'detail' && <ProductDetailPage />}
+      {currentPage === 'home' && (
+        <HomePage 
+          loading={loading}
+          products={products}
+          handleCategoryClick={handleCategoryClick}
+          setCurrentPage={setCurrentPage}
+          setSelectedCategory={setSelectedCategory}
+        />
+      )}
+      {currentPage === 'listing' && (
+        <ListingPage 
+          setCurrentPage={setCurrentPage}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          selectedCategory={selectedCategory}
+          filteredProducts={filteredProducts}
+          handleViewProduct={handleViewProduct}
+        />
+      )}
+      {currentPage === 'add' && (
+        <AddProductPage 
+          setCurrentPage={setCurrentPage}
+          editingProduct={editingProduct}
+          setEditingProduct={setEditingProduct}
+          images={images}
+          setImages={setImages}
+          handleImageUpload={handleImageUpload}
+          nameInputRef={nameInputRef}
+          priceInputRef={priceInputRef}
+          descriptionInputRef={descriptionInputRef}
+          categoryInputRef={categoryInputRef}
+          addProduct={addProduct}
+          saving={saving}
+        />
+      )}
+      {currentPage === 'view' && (
+        <ViewAllPage 
+          setCurrentPage={setCurrentPage}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          filteredProducts={filteredProducts}
+          startEdit={startEdit}
+          deleteProduct={deleteProduct}
+        />
+      )}
+      {currentPage === 'detail' && (
+        <ProductDetailPage 
+          selectedProduct={selectedProduct}
+          setCurrentPage={setCurrentPage}
+        />
+      )}
     </div>
   );
 };
