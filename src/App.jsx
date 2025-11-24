@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useCallback, memo, useRef, useMemo } from 'react';
 import './App.css';
 import Landing from './assets/Landing.jpg';
+import Wedding from './assets/Wedding.png';
+import uniform from './assets/uniform.png';
+import more from './assets/more.png';
 import { db } from './firebase';
 import {
   collection,
@@ -10,6 +13,91 @@ import {
   deleteDoc,
   doc,
 } from 'firebase/firestore';
+
+// Pre-defined credentials
+const ADMIN_USERNAME = 'admin';
+const ADMIN_PASSWORD = 'artisans2025';
+
+// AuthPage Component
+const AuthPage = memo(({ setCurrentPage, setIsAuthenticated, targetPage }) => {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+
+  const handleLogin = (e) => {
+    e.preventDefault();
+    
+    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+      setIsAuthenticated(true);
+      setCurrentPage(targetPage);
+      setError('');
+    } else {
+      setError('Invalid username or password');
+      setPassword('');
+    }
+  };
+
+  return (
+    <div className="page-container">
+      <div className="container-small">
+        <button onClick={() => setCurrentPage('home')} className="back-btn">
+          ←
+        </button>
+
+        <div className="form-card">
+          <h2>Admin Login</h2>
+          <p style={{ color: '#6b7280', marginBottom: '24px' }}>
+            Please enter your credentials to access inventory management
+          </p>
+
+          <div>
+            <div className="form-group">
+              <label>Username</label>
+              <input
+                type="text"
+                placeholder="Enter username"
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                autoComplete="username"
+                onKeyPress={(e) => e.key === 'Enter' && handleLogin(e)}
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Password</label>
+              <input
+                type="password"
+                placeholder="Enter password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                onKeyPress={(e) => e.key === 'Enter' && handleLogin(e)}
+              />
+            </div>
+
+            {error && (
+              <div style={{ 
+                color: '#dc2626', 
+                marginBottom: '16px',
+                padding: '12px',
+                backgroundColor: '#fee2e2',
+                borderRadius: '8px'
+              }}>
+                {error}
+              </div>
+            )}
+
+            <button onClick={handleLogin} className="btn-submit">
+              Login
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+AuthPage.displayName = 'AuthPage';
 
 // Memoized Product Card Component
 const ProductCard = memo(({ product, showActions = false, onEdit, onDelete, onView }) => {
@@ -94,14 +182,14 @@ const CategoryCard = memo(({ title, count, image, category, onClick }) => (
 
 CategoryCard.displayName = 'CategoryCard';
 
-// HomePage Component - Outside App
+// HomePage Component
 const HomePage = memo(({ 
   loading, 
   products, 
   handleCategoryClick, 
   setCurrentPage, 
   setSelectedCategory,
-  handleViewAllProducts
+  handleInventoryAction
 }) => {
   const weddingCount = products.filter((p) => p.category === 'Wedding').length;
   const uniformCount = products.filter((p) => p.category === 'Uniform').length;
@@ -127,7 +215,7 @@ const HomePage = memo(({
                 setSelectedCategory('all');
                 setCurrentPage('listing');
               }}
-              className="btn-primary"
+              className="btn-primary1"
             >
               View More
             </button>
@@ -149,21 +237,21 @@ const HomePage = memo(({
               title="Wedding"
               count={weddingCount}
               category="Wedding"
-              image="https://images.unsplash.com/photo-1519741497674-611481863552?w=400"
+              image={Wedding}
               onClick={handleCategoryClick}
             />
             <CategoryCard
               title="Uniform"
               count={uniformCount}
               category="Uniform"
-              image="https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400"
+              image={uniform}
               onClick={handleCategoryClick}
             />
             <CategoryCard
               title="More"
               count={moreCount}
               category="More"
-              image="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=400"
+              image={more}
               onClick={handleCategoryClick}
             />
           </div>
@@ -176,13 +264,13 @@ const HomePage = memo(({
           <div className="inventory-card">
             <div className="inventory-row">
               <h3>Add New Product</h3>
-              <button onClick={() => setCurrentPage('add')} className="btn-secondary">
+              <button onClick={() => handleInventoryAction('add')} className="btn-secondary">
                 Add +
               </button>
             </div>
             <div className="inventory-row">
               <h3>View All Products</h3>
-              <button onClick={handleViewAllProducts} className="btn-secondary">
+              <button onClick={() => handleInventoryAction('view')} className="btn-secondary">
                 View 
               </button>
             </div>
@@ -229,7 +317,7 @@ const HomePage = memo(({
 
 HomePage.displayName = 'HomePage';
 
-// ListingPage Component - Outside App
+// ListingPage Component
 const ListingPage = memo(({ 
   setCurrentPage, 
   searchQuery, 
@@ -278,20 +366,26 @@ const ListingPage = memo(({
 
 ListingPage.displayName = 'ListingPage';
 
-// ViewAllPage Component - Outside App
+// ViewAllPage Component
 const ViewAllPage = memo(({ 
   setCurrentPage, 
   searchQuery, 
   setSearchQuery, 
   filteredProducts, 
   startEdit, 
-  deleteProduct 
+  deleteProduct,
+  handleLogout
 }) => (
   <div className="page-container">
     <div className="container-small">
-      <button onClick={() => setCurrentPage('home')} className="back-btn">
-        ←
-      </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <button onClick={() => setCurrentPage('home')} className="back-btn">
+          ←
+        </button>
+        <button onClick={handleLogout} className="btn-secondary">
+          Logout
+        </button>
+      </div>
 
       <div className="form-card">
         <h2>All Products</h2>
@@ -333,7 +427,7 @@ const ViewAllPage = memo(({
 
 ViewAllPage.displayName = 'ViewAllPage';
 
-// AddProductPage Component - Outside App
+// AddProductPage Component
 const AddProductPage = memo(({ 
   setCurrentPage, 
   editingProduct, 
@@ -346,24 +440,30 @@ const AddProductPage = memo(({
   descriptionInputRef, 
   categoryInputRef, 
   addProduct, 
-  saving 
+  saving,
+  handleLogout
 }) => (
   <div className="page-container">
     <div className="container-small">
-      <button
-        onClick={() => {
-          setCurrentPage('home');
-          setEditingProduct(null);
-          setImages([]);
-          if (nameInputRef.current) nameInputRef.current.value = '';
-          if (priceInputRef.current) priceInputRef.current.value = '';
-          if (descriptionInputRef.current) descriptionInputRef.current.value = '';
-          if (categoryInputRef.current) categoryInputRef.current.value = 'Wedding';
-        }}
-        className="back-btn"
-      >
-        ←
-      </button>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+        <button
+          onClick={() => {
+            setCurrentPage('home');
+            setEditingProduct(null);
+            setImages([]);
+            if (nameInputRef.current) nameInputRef.current.value = '';
+            if (priceInputRef.current) priceInputRef.current.value = '';
+            if (descriptionInputRef.current) descriptionInputRef.current.value = '';
+            if (categoryInputRef.current) categoryInputRef.current.value = 'Wedding';
+          }}
+          className="back-btn"
+        >
+          ←
+        </button>
+        <button onClick={handleLogout} className="btn-secondary">
+          Logout
+        </button>
+      </div>
 
       <div className="form-card">
         <h2>{editingProduct ? 'Edit Product' : 'Add new product'}</h2>
@@ -448,7 +548,7 @@ const AddProductPage = memo(({
 
 AddProductPage.displayName = 'AddProductPage';
 
-// ProductDetailPage Component - Outside App
+// ProductDetailPage Component
 const ProductDetailPage = memo(({ selectedProduct, setCurrentPage }) => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
@@ -530,8 +630,9 @@ const App = () => {
   const [saving, setSaving] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [images, setImages] = useState([]);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [targetPage, setTargetPage] = useState(null);
 
-  // Use refs for form inputs to avoid re-render issues
   const nameInputRef = useRef(null);
   const priceInputRef = useRef(null);
   const descriptionInputRef = useRef(null);
@@ -541,20 +642,17 @@ const App = () => {
     loadProducts();
   }, []);
 
-  // Filter products based on search query and category
   const filteredProducts = useMemo(() => {
     if (!products?.length) return [];
     
     let filtered = [...products];
 
-    // Filter by category
     if (selectedCategory !== 'all') {
       filtered = filtered.filter(
         (p) => p.category.toLowerCase() === selectedCategory.toLowerCase()
       );
     }
 
-    // Filter by search query
     if (!searchQuery) return filtered;
     
     const search = searchQuery.toLowerCase().trim();
@@ -647,7 +745,6 @@ const App = () => {
         alert('Product added successfully!');
       }
       
-      // Clear form
       if (nameInputRef.current) nameInputRef.current.value = '';
       if (priceInputRef.current) priceInputRef.current.value = '';
       if (descriptionInputRef.current) descriptionInputRef.current.value = '';
@@ -682,7 +779,6 @@ const App = () => {
     setImages(product.images || []);
     setCurrentPage('add');
     
-    // Set values with a small delay to ensure refs are ready
     setTimeout(() => {
       if (nameInputRef.current) nameInputRef.current.value = product.name;
       if (priceInputRef.current) priceInputRef.current.value = product.price;
@@ -697,15 +793,24 @@ const App = () => {
     setCurrentPage('listing');
   }, []);
 
-  const handleViewAllProducts = useCallback(() => {
-    setSelectedCategory('all');
-    setSearchQuery('');
-    setCurrentPage('view');
-  }, []);
+  const handleInventoryAction = useCallback((page) => {
+    if (!isAuthenticated) {
+      setTargetPage(page);
+      setCurrentPage('auth');
+    } else {
+      setCurrentPage(page);
+    }
+  }, [isAuthenticated]);
 
   const handleViewProduct = useCallback((product) => {
     setSelectedProduct(product);
     setCurrentPage('detail');
+  }, []);
+
+  const handleLogout = useCallback(() => {
+    setIsAuthenticated(false);
+    setCurrentPage('home');
+    alert('Logged out successfully');
   }, []);
 
   return (
@@ -723,6 +828,13 @@ const App = () => {
         </div>
       </nav>
 
+      {currentPage === 'auth' && (
+        <AuthPage 
+          setCurrentPage={setCurrentPage}
+          setIsAuthenticated={setIsAuthenticated}
+          targetPage={targetPage}
+        />
+      )}
       {currentPage === 'home' && (
         <HomePage 
           loading={loading}
@@ -730,7 +842,7 @@ const App = () => {
           handleCategoryClick={handleCategoryClick}
           setCurrentPage={setCurrentPage}
           setSelectedCategory={setSelectedCategory}
-          handleViewAllProducts={handleViewAllProducts}
+          handleInventoryAction={handleInventoryAction}
         />
       )}
       {currentPage === 'listing' && (
@@ -757,6 +869,7 @@ const App = () => {
           categoryInputRef={categoryInputRef}
           addProduct={addProduct}
           saving={saving}
+          handleLogout={handleLogout}
         />
       )}
       {currentPage === 'view' && (
@@ -767,6 +880,7 @@ const App = () => {
           filteredProducts={filteredProducts}
           startEdit={startEdit}
           deleteProduct={deleteProduct}
+          handleLogout={handleLogout}
         />
       )}
       {currentPage === 'detail' && (

@@ -15,6 +15,10 @@
   font-family: 'parisienne';
   src: local('parisienne'), url(./fonts/Parisienne-Regular.ttf) format('truetype');
 }
+@font-face {
+  font-family: 'Montserrat';
+  src: local('Montserrat'), url(./fonts/Montserrat-VariableFont_wght.ttf) format('truetype');
+}
 
 /* Navbar */
 .navbar {
@@ -85,7 +89,7 @@
 }
 
 .hero-text h1 {
-  font-size: 52px;
+  font-size: 46px;
   font-weight: bold;
   color: #321E58;
   margin-bottom: 16px;
@@ -97,14 +101,26 @@
 .hero-text p {
   color: #583991;
   margin-bottom: 32px;
-  font-size: 18px;
+  font-size: 24px;
   font-family: "Modern No. 20", serif;
-  font-style: italic;
   opacity: 0.77;
   text-shadow: 0 1px 2px rgba(255,255,255,0.5);
 }
 
 /* Buttons */
+.btn-primary1 {
+  background-color: #583991;
+  color: white;
+  padding: 14px 32px;
+  border-radius: 8px;
+  border: none;
+  margin-top: 80px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  opacity: 0.77;
+  font-family: "Montserrat", sans-serif ;
+}
 .btn-primary {
   background-color: #583991;
   color: white;
@@ -130,7 +146,7 @@
   cursor: pointer;
   opacity: 0.77;
   font-weight: 600;
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .btn-secondary:hover {
@@ -170,7 +186,7 @@
 }
 
 .about-section h2 {
-  font-size: 48px;
+  font-size: 40px;
   font-weight: bold;
   text-align: center;
   margin-bottom: 16px;
@@ -183,7 +199,7 @@
   margin-bottom: 60px;
   max-width: 700px;
   margin: 0 auto 60px;
-  font-size: 18px;
+  font-size: 24px;
   line-height: 1.6;
   font-family: "Modern No. 20", serif;
 }
@@ -194,7 +210,7 @@
 }
 
 .inventory-section h2 {
-  font-size: 48px;
+  font-size: 40px;
   font-weight: bold;
   text-align: center;
   margin-bottom: 60px;
@@ -222,7 +238,7 @@
 }
 
 .inventory-row h3 {
-  font-size: 24px;
+  font-size: 28px;
   font-weight: bold;
 }
 
