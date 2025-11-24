@@ -751,6 +751,11 @@
   .hero-text h1 {
     font-size: 36px;
   }
+  .hero-section {
+
+  min-height: 200px;
+  
+}
   
   .nav-content {
     flex-direction: column;

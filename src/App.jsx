@@ -195,14 +195,6 @@ const HomePage = memo(({
   const uniformCount = products.filter((p) => p.category === 'Uniform').length;
   const moreCount = products.filter((p) => p.category === 'More').length;
 
-  if (loading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-text">Loading...</div>
-      </div>
-    );
-  }
-
   return (
     <div className="home-page">
       <header className="hero-section" style={{ backgroundImage: `url(${Landing})` }}>
@@ -626,7 +618,7 @@ const App = () => {
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [images, setImages] = useState([]);
@@ -679,17 +671,16 @@ const App = () => {
 
   const loadProducts = async () => {
     try {
-      setLoading(true);
       const snapshot = await getDocs(collection(db, 'products'));
       const productsData = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
       setProducts(productsData);
+      setLoading(false);
     } catch (error) {
       console.error('Error loading products:', error);
       alert('Error loading products: ' + error.message);
-    } finally {
       setLoading(false);
     }
   };
