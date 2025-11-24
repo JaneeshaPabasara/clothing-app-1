@@ -758,11 +758,11 @@
 }
   .hero-text h1 {
     font-size: 26px;
-    max-width: 60%;
+    max-width: 80%;
   }
     .hero-text p {
     font-size: 14px;
-    max-width:40% ;
+    max-width:60% ;
   }
     .btn-primary1 {
     
