@@ -200,7 +200,7 @@ const HomePage = memo(({
       <header className="hero-section" style={{ backgroundImage: `url(${Landing})` }}>
         <div className="hero-content">
           <div className="hero-text">
-            <h1>Tailored Perfection for Every Style..</h1>
+            <h1>Tailored Perfection for Every Style</h1>
             <p>From Fabric to Fashion – Designed by Artisans</p>
             <button
               onClick={() => {

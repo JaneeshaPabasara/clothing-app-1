@@ -759,6 +759,7 @@
   .hero-text h1 {
     font-size: 26px;
     max-width: 80%;
+    margin-bottom: 10px;
   }
     .hero-text p {
     font-size: 14px;
