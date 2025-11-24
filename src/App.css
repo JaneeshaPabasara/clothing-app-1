@@ -747,15 +747,28 @@
 }
 
 /* Responsive */
-@media (max-width: 768px) {
-  .hero-text h1 {
-    font-size: 36px;
-  }
-  .hero-section {
+@media (max-width: 700px) {
 
-  min-height: 200px;
+  .hero-section {
+  background-size: cover;
+  min-height: 500px;
+  position: relative;
+  padding: 30px 15px;
   
 }
+  .hero-text h1 {
+    font-size: 24px;
+  }
+    .hero-text p {
+    font-size: 16px;
+  }
+    .btn-primary1 {
+    
+    padding: 12px 28px;
+    font-size: 12px;
+    margin-top: 0px;
+  }
+  
   
   .nav-content {
     flex-direction: column;
@@ -772,5 +785,20 @@
   
   .image-preview-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+    .about-section h2 {
+    font-size: 24px;
+  }
+  
+  .about-text {
+    font-size: 14px;
+  }
+  
+  .inventory-section h2 {
+    font-size: 24px;
+  }
+  
+  .inventory-row h3 {
+    font-size: 12px;
   }
 }
