@@ -751,13 +751,13 @@
 
   .hero-section {
   background-size: cover;
-  min-height: 500px;
+  min-height: 220px;
   position: relative;
   padding: 30px 15px;
   
 }
   .hero-text h1 {
-    font-size: 24px;
+    font-size: 28px;
   }
     .hero-text p {
     font-size: 16px;
@@ -777,6 +777,7 @@
   
   .category-grid {
     grid-template-columns: 1fr;
+    font-size: 22px;
   }
   
   .products-grid {
@@ -799,6 +800,6 @@
   }
   
   .inventory-row h3 {
-    font-size: 12px;
+    font-size: 16px;
   }
 }
