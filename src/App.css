@@ -812,4 +812,23 @@
   .inventory-row h3 {
     font-size: 16px;
   }
+
+  .detail-info h1 {
+  font-size: 28px;
+  margin-bottom: 6px;
+}
+
+.detail-info h2 {
+  font-size: 24px;
+  margin-bottom: 25px;
+}
+
+.detail-info h3 {
+  font-size: 18px;
+  margin-bottom: 10px;
+}
+
+.detail-info p {
+  font-size: 16px;
+}
 }
