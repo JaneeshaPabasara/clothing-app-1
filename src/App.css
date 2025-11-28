@@ -780,7 +780,14 @@
   
   .category-grid {
     grid-template-columns: 1fr;
-    font-size: 20px;
+  }
+
+    .category-overlay h3 {
+    font-size: 24px;
+  }
+  
+  .category-overlay p {
+    font-size: 14px;
   }
   
   .products-grid {
