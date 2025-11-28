@@ -18,6 +18,41 @@ import {
 const ADMIN_USERNAME = 'admin';
 const ADMIN_PASSWORD = 'artisans2025';
 
+// Image compression function
+const compressImage = (file, maxWidth = 800, quality = 0.7) => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        // Calculate new dimensions
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+
+        // Convert to base64 with compression
+        const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressedBase64);
+      };
+      img.onerror = reject;
+    };
+    reader.onerror = reject;
+  });
+};
+
 // AuthPage Component
 const AuthPage = memo(({ setCurrentPage, setIsAuthenticated, targetPage }) => {
   const [username, setUsername] = useState('');
@@ -433,7 +468,8 @@ const AddProductPage = memo(({
   categoryInputRef, 
   addProduct, 
   saving,
-  handleLogout
+  handleLogout,
+  uploadProgress
 }) => (
   <div className="page-container">
     <div className="container-small">
@@ -461,13 +497,21 @@ const AddProductPage = memo(({
         <h2>{editingProduct ? 'Edit Product' : 'Add new product'}</h2>
 
         <div className="form-group">
-          <label>Attach Images</label>
+          <label>Attach Images (max 3 images recommended)</label>
           <input
             type="file"
             multiple
             accept="image/*"
             onChange={handleImageUpload}
           />
+          <p style={{ fontSize: '12px', color: '#6b7280', marginTop: '4px' }}>
+            Images will be automatically compressed for mobile compatibility
+          </p>
+          {uploadProgress && (
+            <p style={{ fontSize: '14px', color: '#7c3aed', marginTop: '8px' }}>
+              {uploadProgress}
+            </p>
+          )}
           {images.length > 0 && (
             <div className="image-preview-grid">
               {images.map((img, idx) => (
@@ -624,6 +668,7 @@ const App = () => {
   const [images, setImages] = useState([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [targetPage, setTargetPage] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState('');
 
   const nameInputRef = useRef(null);
   const priceInputRef = useRef(null);
@@ -685,20 +730,35 @@ const App = () => {
     }
   };
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const files = Array.from(e.target.files);
     
-    const imagePromises = files.map((file) => {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (event) => resolve(event.target.result);
-        reader.readAsDataURL(file);
-      });
-    });
+    if (files.length === 0) return;
 
-    Promise.all(imagePromises).then((newImages) => {
-      setImages(prev => [...prev, ...newImages]);
-    });
+    // Limit to 3 images max
+    if (images.length + files.length > 3) {
+      alert('Maximum 3 images allowed per product');
+      return;
+    }
+
+    setUploadProgress(`Compressing ${files.length} image(s)...`);
+
+    try {
+      const compressedImages = await Promise.all(
+        files.map(async (file, index) => {
+          setUploadProgress(`Compressing image ${index + 1} of ${files.length}...`);
+          // Compress image: max width 800px, quality 0.6 for mobile compatibility
+          return await compressImage(file, 800, 0.6);
+        })
+      );
+
+      setImages(prev => [...prev, ...compressedImages]);
+      setUploadProgress('');
+    } catch (error) {
+      console.error('Error compressing images:', error);
+      alert('Error processing images. Please try again.');
+      setUploadProgress('');
+    }
   };
 
   const addProduct = async () => {
@@ -714,6 +774,15 @@ const App = () => {
 
     if (parseFloat(price) <= 0) {
       alert('Price must be greater than 0');
+      return;
+    }
+
+    // Check if images are too large
+    const totalSize = images.reduce((acc, img) => acc + img.length, 0);
+    const estimatedMB = (totalSize * 0.75) / (1024 * 1024); // Estimate actual size
+    
+    if (estimatedMB > 0.8) {
+      alert('Images are too large. Please use fewer images or lower quality images.');
       return;
     }
 
@@ -746,7 +815,11 @@ const App = () => {
       setCurrentPage('view');
     } catch (error) {
       console.error('Error adding/updating product:', error);
-      alert('Error saving product: ' + error.message);
+      if (error.message.includes('1048487')) {
+        alert('Images are too large for mobile. Please reduce the number of images or image quality.');
+      } else {
+        alert('Error saving product: ' + error.message);
+      }
     } finally {
       setSaving(false);
     }
@@ -861,6 +934,7 @@ const App = () => {
           addProduct={addProduct}
           saving={saving}
           handleLogout={handleLogout}
+          uploadProgress={uploadProgress}
         />
       )}
       {currentPage === 'view' && (
