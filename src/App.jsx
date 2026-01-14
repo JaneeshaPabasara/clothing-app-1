@@ -14,7 +14,7 @@ import {
   doc,
 } from 'firebase/firestore';
 
-// Pre-defined credentials
+
 const ADMIN_USERNAME = 'admin';
 const ADMIN_PASSWORD = 'artisans2025';
 
@@ -31,7 +31,7 @@ const compressImage = (file, maxWidth = 800, quality = 0.7) => {
         let width = img.width;
         let height = img.height;
 
-        // Calculate new dimensions
+        // Calculate new dimensions for img
         if (width > maxWidth) {
           height = (height * maxWidth) / width;
           width = maxWidth;
@@ -53,7 +53,7 @@ const compressImage = (file, maxWidth = 800, quality = 0.7) => {
   });
 };
 
-// AuthPage Component
+// AuthPage comp
 const AuthPage = memo(({ setCurrentPage, setIsAuthenticated, targetPage }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
